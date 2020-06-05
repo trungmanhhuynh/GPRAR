@@ -15,6 +15,27 @@ Description
     + Our dataset contains 88K frames with 2793 unique pedestrians labeled with over 390K bounding boxes. Occlusion tags are provided for each bounding box. ~57K (13%) of bounding boxes are tagged with partial occlusion and ~48K (12%) with heavy occlusion.
 
 
+## Create raw data: 
+  
+  Create the raw data for JAAD dataset, and make sure the structure of raw data is at follow:
+
+```
+Traj-STGCNN
+└── raw_data
+    └── JAAD
+        └── pose_data
+            ├── video1
+            │   └── frame01
+            │   └── ...
+            │   └── framen    
+            │       
+            ├── ...
+            └── videon
+        └── location_data
+```
+
+
+
 ## Data Pre-processing
 
 
