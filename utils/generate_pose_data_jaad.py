@@ -1,14 +1,12 @@
 '''
+generate_pose_data_jaad.py 
 
 Author: Manh Huynh
-Last Update: 06/03/2020
+Last Update: 06/15/2020
 '''
 
 import sys
 import os
-
-#from datasets.JAAD.jaad_data import JAAD
-#sys.path.append('..')
 
 
 JAAD_DATASET_DIR = "/home/manhh/github/datasets/JAAD"
@@ -16,10 +14,16 @@ PROCESSED_DATA_DIR = "/home/manhh/github/Traj-STGCNN/processed_data/JAAD"
 OPENPOSE_DIR =  "/home/manhh/github/openpose/build/examples/openpose"
 
 
-def generate_pose_data():
+def generate_pose_data_jaad():
+	'''
+		generate pose feature for jaad datasets using openpose. The script run the following command line
+		for each video in the dataset. 
+		#./build/examples/openpose/openpose.bin --image_dir /home/manhh/github/datasets/JAAD/images \
+		--write_json processed_pose_dir--display 0 --render_pose 0 
 
-	#./build/examples/openpose/openpose.bin --image_dir ~/github/datasets/eth_mobile/images/eth_bahnhof/--write_json ./mytest/ --display 0 --render_pose 0 
+		Read README.md for output directory structure of the processed data
 
+	'''
 
 	images_dir = os.path.join(JAAD_DATASET_DIR, "images") 
 	for video_name in os.listdir(images_dir): 
@@ -38,21 +42,7 @@ def generate_pose_data():
 		os.system(cmd)
 
 
-def generate_location_data():
-
-
-	 # 1. Read ground truth pedestrian information given by JAAD dataset. 
-	imdb = JAAD(data_path=JAAD_DATASET_PATH)
-	jaad_data = imdb.generate_database()
-
-	print(jaad_data)
-	input("jere")
-
-
-
-
 if __name__ == '__main__':
-
 
 
 	generate_pose_data() 
