@@ -24,45 +24,58 @@ Description
        >> sh split_clips_to_frames.sh          # parse clips into images 
        ```
 
-## Generate raw data
+## Generate processed data
   
-  Create the raw data for JAAD dataset, and make sure the structure of raw data is at follow:
+Create the processed features for JAAD dataset, and make sure the structure of raw data is at follow:
 
 ```
 Traj-STGCNN
 └── raw_data
     └── JAAD
-        └── pose_data
-            ├── video1
-            │   └── frame01
+        └── pose
+            ├── video_0001
+            │   └── 00000_keypoints.json
             │   └── ...
-            │   └── framen    
+            │   └── 0000y_keypoints.json    
             │       
             ├── ...
-            └── videon
-        └── location_data
-            ├── video1
-            │   └── frame01
+            └── video_000y
+        └── location
+            ├── video_0001
+            │   └── 00000_locations.json
             │   └── ...
-            │   └── framen    
+            │   └── 0000x_locations.json
             │       
             ├── ...
-            └── videon
-        └── opticalflow_data
-            ├── video1
-            │   └── frame01
-            │   └── ...
-            │   └── framen    
-            │       
-            ├── ...
-            └── videon
-
+            └── video_000y
 ```
 
 
-## Generate processed data 
+To generate pose data, specify `JAAD_DATASET_DIR`, `PROCESSED_DATA_DIR`, `OPENPOSE_DIR`, then run:
+```
 
-  To generate processed data, run the following: 
+$ python utils/generate_pose_data_jaad.py
+
+```
+
+To generate location data, specify `JAAD_DATASET_DIR` and `PROCESSED_DATA_DIR` in `generate_location_data_jaad.py`, then run:
+
+```
+$ python utils/generate_pose_data_jaad.py
+
+```
+
+To visualize processed features, specify `video_name`, `IMAGES_DIR`, `LOCATION_DATA_DIR`, `POSE_DATA_DIR`, `OUTPUT_IMAGES_DIR`, then run:
+```
+python utils/visualize_inputs.py
+```
+
+By default, this script plots both pose and bounding box on the same images. 
+
+
+## Generate train/val data
+
+  To generate train/val data, run the following: 
 
 
   Please double check and make sure the processed data folder is as follows: 
