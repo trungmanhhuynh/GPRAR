@@ -3,7 +3,7 @@
 generate_inputs.py : visualize input data: locations, pose
 
 Author: Manh Huynh
-Last Update: 06/16/2020
+Last Update: 06/18/2020
 '''
 
 import os 
@@ -16,7 +16,7 @@ import matplotlib.patches as pac
 video_name = "video_0001"
 IMAGES_DIR = "/home/manhh/github/datasets/JAAD/images" 
 LOCATION_DATA_DIR = "/home/manhh/github/Traj-STGCNN/processed_data/JAAD/location"
-POSE_DATA_DIR = "/home/manhh/github/Traj-STGCNN/processed_data/JAAD/pose" 
+POSE_ID_DATA_DIR = "/home/manhh/github/Traj-STGCNN/processed_data/JAAD/pose_id" 
 OUTPUT_IMAGES_DIR = "./visualize"
 
 def extract_parts(pose):
@@ -55,12 +55,12 @@ def extract_parts(pose):
 
 
 def is_zero(point):
-    if(point[0] == 0 and point[1]== 0):
-        return True
-    else:
-        return False
+	if(point[0] == 0 and point[1]== 0):
+		return True
+	else:
+		return False
 
-def plot_pose(pose_keypoints_2d, ax): 
+def plot_pose(pose_keypoints_2d, person_id, ax): 
 
 	
 	Nose, Neck, RShoulder, RElbow, RWrist, LShoulder, LElbow, LWrist, MidHip, RHip, \
@@ -118,6 +118,13 @@ def plot_pose(pose_keypoints_2d, ax):
 	if(is_zero(LBigToe)==False and is_zero(LSmallToe)==False): 
 		ax.plot([LBigToe[0], LSmallToe[0]], [LBigToe[1],LSmallToe[1]], '-', linewidth=3, color='C7')   #19-20
 
+	if(is_zero(LBigToe)==False and is_zero(LSmallToe)==False): 
+		ax.plot([LBigToe[0], LSmallToe[0]], [LBigToe[1],LSmallToe[1]], '-', linewidth=3, color='C7')   #19-20
+	
+	# plot id
+	ax.text(MidHip[0], MidHip[1], person_id, bbox=dict(facecolor='red', alpha=0.2))
+
+
 	return ax 
 
 def plot_bbox(bbox, plt): 
@@ -130,6 +137,8 @@ def plot_bbox(bbox, plt):
 	rectangle = pac.Rectangle((bbox[0], bbox[1]), bbox_w ,bbox_h, fill=False ,ec="red")
 	plt.gca().add_patch(rectangle)
 
+
+
 	return plt
 
 
@@ -139,7 +148,7 @@ def visualize(image_width = 1920, image_height= 1080):
 
 	"""
 		Visualize processed data: pose, locations for a video 
-		The directories IMAGES_DIR, LOCATION_DATA_DIR, POSE_DATA_DIR must be exist
+		The directories IMAGES_DIR, LOCATION_DATA_DIR, POSE_ID_DATA_DIR must be exist
 		and their structures must be the same as mentioned in README.md. 
 		The resulted images will be written to OUTPUT_IMAGES_DIR
 	"""
@@ -158,11 +167,11 @@ def visualize(image_width = 1920, image_height= 1080):
 		ax.imshow(img,  extent= [0,image_width, image_height,0])
 
 		# plot pose data (resulted from openpose)
-		with open(os.path.join(POSE_DATA_DIR, video_name, os.path.splitext(image_name)[0] + "_keypoints.json"), "r") as f:
+		with open(os.path.join(POSE_ID_DATA_DIR, video_name, os.path.splitext(image_name)[0] + "_keypoints.json"), "r") as f:
 			pose_data = json.load(f)
 
 		for ped in pose_data["people"]: 
-			ax = plot_pose(ped['pose_keypoints_2d'], ax)
+			ax = plot_pose(ped['pose_keypoints_2d'], ped["person_id"], ax)
 
 		# plot bounding box (from ground truth)
 		with open(os.path.join(LOCATION_DATA_DIR, video_name, os.path.splitext(image_name)[0] + "_locations.json"), "r") as f:
