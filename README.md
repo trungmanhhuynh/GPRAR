@@ -30,7 +30,7 @@ Create the processed features for JAAD dataset, and make sure the structure of r
 
 ```
 Traj-STGCNN
-└── raw_data
+└── processed_data
     └── JAAD
         └── pose
             ├── video_0001
@@ -82,7 +82,7 @@ By default, this script plots both pose and bounding box on the same images.
 
 ```
 Traj-STGCNN
-└── processed_data
+└── train_val_data
     └── JAAD
         └── mini_size
               └── train_data.joblib
