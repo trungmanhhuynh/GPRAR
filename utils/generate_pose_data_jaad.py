@@ -5,7 +5,6 @@ Author: Manh Huynh
 Last Update: 06/15/2020
 '''
 
-import sys
 import os
 
 
@@ -22,6 +21,11 @@ def generate_pose_data_jaad():
 		--write_json processed_pose_dir--display 0 --render_pose 0 
 
 		Read README.md for output directory structure of the processed data
+
+
+		Look https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/doc/output.md
+		for dictionary structure of each frame  data 		
+
 
 	'''
 
@@ -45,4 +49,4 @@ def generate_pose_data_jaad():
 if __name__ == '__main__':
 
 
-	generate_pose_data() 
+	generate_pose_data_jaad() 

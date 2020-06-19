@@ -2,9 +2,8 @@
 generate_location_data_jaad.py 
 
 Author: Manh Huynh
-Last Update: 06/16/2020
+Last Update: 06/19/2020
 '''
-
 
 import sys
 import os 
@@ -24,12 +23,13 @@ def generate_location_data():
 		location_data dictionary structure of each image frame: 
 		'width': int
 		'height': int
-		'ped_annotations'(str): {
-			'ped_id'(str): {
-				'bbox': list([x1, y1, x2, y2])  
-				'occlusion': int
-			}
-		}   		
+		'people':[{
+			'person_id': str
+			'bbox': [x1, y1, x2, y2]
+			'center': [xc, yc]
+			'occlusion': int}
+		]
+		   		
 	"""
 
 	# read ground truth pedestrian information given by JAAD dataset. 
@@ -52,18 +52,23 @@ def generate_location_data():
 			location_data = {} 
 			location_data['width'] = jaad_data[video]['width'] 
 			location_data['height'] = jaad_data[video]['height'] 
-			location_data['ped_annotations'] = {} 
+			location_data['people'] = []
 
 
 			# collect data in each frame
 			for ped_id in jaad_data[video]['ped_annotations']:
 
+
 				if(jaad_data[video]['ped_annotations'][ped_id]['frames'].count(search_frame)):
 					search_frame_index = jaad_data[video]['ped_annotations'][ped_id]['frames'].index(search_frame)
 
-					location_data['ped_annotations'][ped_id] = {}
-					location_data['ped_annotations'][ped_id]['bbox'] = jaad_data[video]['ped_annotations'][ped_id]['bbox'][search_frame_index]
-					location_data['ped_annotations'][ped_id]['occlusion'] = jaad_data[video]['ped_annotations'][ped_id]['occlusion'][search_frame_index]
+					temp = {}
+					temp['person_id'] = ped_id
+					temp['bbox'] = jaad_data[video]['ped_annotations'][ped_id]['bbox'][search_frame_index]
+					temp['occlusion'] = jaad_data[video]['ped_annotations'][ped_id]['occlusion'][search_frame_index]
+					temp['center'] = [0.5*(temp['bbox'][0] + temp['bbox'][2]), 0.5*(temp['bbox'][1] + temp['bbox'][3])]
+
+					location_data['people'].append(temp)
 
 			outfile = os.path.join(processed_video_dir, "{:05d}_locations.json".format(search_frame))
 			with open(outfile, 'w') as f:
@@ -74,4 +79,3 @@ def generate_location_data():
 if __name__ == '__main__':
 
 	generate_location_data() 
-

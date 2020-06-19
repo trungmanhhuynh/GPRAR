@@ -34,15 +34,9 @@ def generate_cost_matrix(pose_data, location_data):
 
 
 	location_center = [] 
-	for ped_id in location_data['ped_annotations']:
+	for ped in location_data['people']:
 
-		loc_center_x  = 0.5*(location_data['ped_annotations'][ped_id]['bbox'][0] \
-						 + location_data['ped_annotations'][ped_id]['bbox'][2])
-
-		loc_center_y = 0.5*(location_data['ped_annotations'][ped_id]['bbox'][1] \
-						 + location_data['ped_annotations'][ped_id]['bbox'][3])
-
-		location_center.append([loc_center_x, loc_center_y])
+		location_center.append(ped['center'])
 
 
 	# Build cost matrix as a numpy array ~ (num_pose, num_gt_ped)
@@ -96,7 +90,7 @@ def assign_pose_id():
 
 			for row, col in indexes:
 				# ped_id of pose at row matched with location at col
-				pose_data["people"][row]['person_id'] = list(location_data['ped_annotations'])[col]
+				pose_data["people"][row]['person_id'] = location_data['people'][col]['person_id']
 
 			# save to file
 			outfile = os.path.join(OUTPUT_POSE_ID_DIR, video_name, "{:05d}_keypoints.json".format(frame_number))

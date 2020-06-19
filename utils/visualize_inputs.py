@@ -177,8 +177,8 @@ def visualize(image_width = 1920, image_height= 1080):
 		with open(os.path.join(LOCATION_DATA_DIR, video_name, os.path.splitext(image_name)[0] + "_locations.json"), "r") as f:
 			location_data = json.load(f)
 
-		for ped_id in location_data['ped_annotations']:
-			fig = plot_bbox(location_data['ped_annotations'][ped_id]['bbox'], fig)
+		for ped in location_data['people']:
+			fig = plot_bbox(ped['bbox'], fig)
 
 
 		fig.savefig(os.path.join(OUTPUT_IMAGES_DIR, video_name, image_name))
