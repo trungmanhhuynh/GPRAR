@@ -76,21 +76,20 @@ def assign_pose_id():
 				location_data = json.load(f) 
 
 
-			if not pose_data["people"]: 
-				continue 
+			if pose_data["people"]: 		 
 
-			cost_matrix = generate_cost_matrix(pose_data, location_data) 
-			#print("num_pose={}, num_gt_peds ={}".format(len(cost_matrix), len(cost_matrix[0])))
-			#print_matrix(cost_matrix, msg='Lowest cost through this matrix:')
+				cost_matrix = generate_cost_matrix(pose_data, location_data) 
+				#print("num_pose={}, num_gt_peds ={}".format(len(cost_matrix), len(cost_matrix[0])))
+				#print_matrix(cost_matrix, msg='Lowest cost through this matrix:')
 
-			# run matching 
-			m = Munkres()
-			indexes = m.compute(cost_matrix)             #(pose_idx, actual_person_id)
+				# run matching 
+				m = Munkres()
+				indexes = m.compute(cost_matrix)             #(pose_idx, actual_person_id)
 
 
-			for row, col in indexes:
-				# ped_id of pose at row matched with location at col
-				pose_data["people"][row]['person_id'] = location_data['people'][col]['person_id']
+				for row, col in indexes:
+					# ped_id of pose at row matched with location at col
+					pose_data["people"][row]['person_id'] = location_data['people'][col]['person_id']
 
 			# save to file
 			outfile = os.path.join(OUTPUT_POSE_ID_DIR, video_name, "{:05d}_keypoints.json".format(frame_number))
