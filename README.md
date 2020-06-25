@@ -4,7 +4,7 @@
 
  - In this project, we study how pose features impact on human future location prediction. We strongly focus handling the scenarios that 
  the human pose estimation are often imperfect (e.g. missing detected human keypoints). 
- - The current method is based on spatio-temporal graph convolutional neural networks, which we will exploit its capability to "attend" to visible human keypoints, 
+ - The current method is based on spatio-temporal graph convolutional neural networks (st-gcnn), which we will exploit its capability to "attend" to visible human keypoints, 
  give higher importance weights to human parts that are related to prediction tasks. 
 
 
