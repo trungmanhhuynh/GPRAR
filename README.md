@@ -105,7 +105,7 @@ Traj-STGCNN
 
 
 ## Plan 
-1. Pre-processes the datasets 
+1. Pre-processes the datasets (done)
     + Extract sample from the dataset. Each sample includes these features
         -- video name 
         -- frame number
@@ -114,8 +114,8 @@ Traj-STGCNN
         -- optical_flow
         -- occludede ?
 
-2. Build the network  
-    + using tcn as decoder and encoder. 
+2. Build the network  (in-progress)
+    + using st-gcn as decoder and encoder. 
 
 
 3. Compare the results with other methods. 
