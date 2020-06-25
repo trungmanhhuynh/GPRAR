@@ -126,7 +126,7 @@ Traj-STGCNN
 
 ## Comparisons
 1. LSTM 
-2. FPL 
+2. FPL (https://github.com/takumayagi/fpl)
 2. Social-STGCNN (adapted to dynamic scenes).
 
     
