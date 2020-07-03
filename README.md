@@ -2,7 +2,11 @@
 
 ## Goal 
 
-Use ST-GCN to generate a better pose features, which helps improve trajectory prediction accuracy. 
+ - In this project, we study how pose features impact on human future location prediction. We strongly focus handling the scenarios that 
+ the human pose estimation are often imperfect (e.g. missing detected human keypoints). 
+ - The current method is based on spatio-temporal graph convolutional neural networks (st-gcnn), which we will exploit its capability to "attend" to visible human keypoints, 
+ give higher importance weights to human parts that are related to prediction tasks. 
+
 
 ## Download Datasets
 
@@ -101,7 +105,7 @@ Traj-STGCNN
 
 
 ## Plan 
-1. Pre-processes the datasets 
+1. Pre-processes the datasets (done)
     + Extract sample from the dataset. Each sample includes these features
         -- video name 
         -- frame number
@@ -110,8 +114,8 @@ Traj-STGCNN
         -- optical_flow
         -- occludede ?
 
-2. Build the network  
-    + using tcn as decoder and encoder. 
+2. Build the network  (in-progress)
+    + using st-gcn as decoder and encoder. 
 
 
 3. Compare the results with other methods. 
@@ -122,7 +126,7 @@ Traj-STGCNN
 
 ## Comparisons
 1. LSTM 
-2. FPL 
+2. FPL (https://github.com/takumayagi/fpl)
 2. Social-STGCNN (adapted to dynamic scenes).
 
     
