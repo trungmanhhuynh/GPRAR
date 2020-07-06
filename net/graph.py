@@ -25,7 +25,7 @@ class Graph():
 
     def __init__(self,
                  layout='openpose_25',
-                 strategy='uniform',
+                 strategy='spatial',
                  max_hop=1,
                  dilation=1):
         self.max_hop = max_hop
@@ -139,8 +139,8 @@ def get_hop_distance(num_node, edge, max_hop=1):
     for d in range(max_hop, -1, -1):
         hop_dis[arrive_mat[d]] = d
 
-    print(hop_dis)
-    input("here")
+    #print(hop_dis)
+    #input("here")
     return hop_dis
 
 
