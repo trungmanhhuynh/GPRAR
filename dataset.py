@@ -2,7 +2,7 @@ import joblib
 import torch
 import numpy
 from torch.utils.data import Dataset
-
+from utils.utils import calc_mean_variance, std_normalize
 
 
 class TrajectoryDataset(Dataset):
@@ -31,8 +31,6 @@ class TrajectoryDataset(Dataset):
         keypoints = 25                 # using openpose 25 keypoints
 
 
-
-        # convert to tensor
         poses, locations, bboxes = [], [], []
         video_names = [] 
         for sample in self.data: 
@@ -40,9 +38,19 @@ class TrajectoryDataset(Dataset):
             locations.append(sample['locations'])
             bboxes.append(sample['bboxes'])
 
+
+        # convert to tensor
         poses_tensor = torch.tensor(poses, dtype=torch.float)               # ~ [num_samples, traj_len, keypoints*pose_features]
         locations_tensor = torch.tensor(locations, dtype=torch.float)       # ~ [num_samples, traj_len, 2]
         bboxes_tensor = torch.tensor(bboxes, dtype=torch.float)             # ~ [num_samples, traj_len, 4]
+
+
+        # normalize data 
+        self.loc_mean, self.loc_var = calc_mean_variance(locations_tensor)     # location mean, var ~ [1, 2]
+        self.pose_mean, self.pose_var = calc_mean_variance(poses_tensor)       # pose mean, var ~ [1, 75]
+        locations_tensor = std_normalize(locations_tensor, self.loc_mean, self.loc_var)
+        poses_tensor= std_normalize(poses_tensor, self.pose_mean, self.pose_var)
+        
 
         # convert poses_tensor to shape [samples, pose_features (3), traj_len (20), keypoints (25), instances (1)]
         num_samples = poses_tensor.shape[0]
@@ -51,7 +59,8 @@ class TrajectoryDataset(Dataset):
         poses_tensor = poses_tensor.unsqueeze(4)                     # ~[num_samples, pose_features, traj_len, keypoints, instances]
 
 
-        self.pose = poses_tensor
+        self.poses = poses_tensor
+        self.locations = locations_tensor
         self.num_samples = num_samples
 
     def __len__(self):
@@ -63,6 +72,10 @@ class TrajectoryDataset(Dataset):
         """
 
         sample = [
-            self.pose[index, :, :self.obs_len, :, :]
+            self.poses[index, :, :self.obs_len, :, :],
+            self.locations[index, -self.pred_len:, :]
         ]
+
         return sample
+
+
