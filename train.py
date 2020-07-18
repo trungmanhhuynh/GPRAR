@@ -7,15 +7,16 @@ Last Update: 06/23/2020
 """
 import os
 import time
+import json
 import argparse
 import torch
 import numpy as np
 from torch import optim
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from net.model import Model
+from net.model import Model56tu57 vc    as
 from dataset import TrajectoryDataset
-
+from utils.utils import calculate_ade_fde
 
 
 parser = argparse.ArgumentParser()
@@ -23,9 +24,9 @@ parser.add_argument('--obs_len', type=int, default=10)
 parser.add_argument('--pred_len', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=128, 
                     help='minibatch size')
-parser.add_argument('--train_data', type=str, default="train_val_data/JAAD/mini_size/train_data.joblib", 
+parser.add_argument('--train_data', type=str, default="train_val_data/JAAD/full_size/train_data.joblib", 
                     help='file used for training')
-parser.add_argument('--val_data', type=str,  default="train_val_data/JAAD/mini_size/val_data.joblib", 
+parser.add_argument('--val_data', type=str,  default="train_val_data/JAAD/full_size/val_data.joblib", 
                     help='file used for validation')
 parser.add_argument('--learning_rate', type=float, default=0.0001, 
                     help='learning rate')
@@ -112,6 +113,7 @@ if(args.resume != ""):
     resume_epoch = resume_dict['e']
 
 # 6. start training
+log_dict = {'epoch': [], 'train_loss': [], 'val_loss': []} 
 for e in range(resume_epoch, args.nepochs):
 
 
@@ -152,7 +154,7 @@ for e in range(resume_epoch, args.nepochs):
     # 6.2 validate
     print("---validate---")
     model.eval()
-    val_loss = 0; 
+    val_loss = 0 ;  val_ade = 0 ; val_fde = 0 
     for val_it, samples in enumerate(loader_val):
         
         pose = Variable(samples[0])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
@@ -166,13 +168,19 @@ for e in range(resume_epoch, args.nepochs):
         pred_locations = model(pose)                                      # pred_locations ~ [batch_size, pred_len, 2]
         val_loss +=  mse_loss(pred_locations, gt_locations).item()
 
+        # calculate ade/fde
+        ade, fde = calculate_ade_fde(gt_locations.data.cpu(), pred_locations.data.cpu(), dset_val.pose_center_mean, dset_val.pose_center_var)
+        val_ade += ade 
+        val_fde += fde
 
     val_loss /= len(loader_val)
+    val_ade /=  len(loader_val)
+    val_fde /= len(loader_val)
     stop_time = time.time()
 
 
-    print("epoch:{} train_loss:{:.5f} val_loss:{:.5f} time(ms):{:.2f}".format(
-        (e + 1), train_loss, val_loss, (stop_time - start_time)*1000))
+    print("epoch:{} train_loss:{:.5f} val_loss:{:.5f} val_ade:{:.2f} val_fde:{:.2f} time(ms):{:.2f}".format(
+        e, train_loss, val_loss, val_ade, val_fde, (stop_time - start_time)*1000))
 
 
     # 7. save model 
@@ -181,5 +189,12 @@ for e in range(resume_epoch, args.nepochs):
         torch.save({'state_dict': model.state_dict(), 'e' :e}, model_file)
         print("saved model to file:", model_file)
 
-    # 8. save log as json  
-    
+    # 8.1 save log as json  
+    log_dict['epoch'].append(e)
+    log_dict['train_loss'].append(train_loss)
+    log_dict['val_loss'].append(val_loss)
+
+# 8.2 save log as json  
+logfile = os.path.join(args.save_log_dir,"log.json")
+with open(logfile, 'w') as f:
+    json.dump(log_dict, f)
