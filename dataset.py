@@ -46,8 +46,12 @@ class TrajectoryDataset(Dataset):
 
 
         # normalize data 
-        self.loc_mean, self.loc_var = calc_mean_variance(locations_tensor)     # location mean, var ~ [1, 2]
-        self.pose_mean, self.pose_var = calc_mean_variance(poses_tensor)       # pose mean, var ~ [1, 75]
+        self.loc_mean, self.loc_var = calc_mean_variance(locations_tensor)     # location mean, var ~ [2]
+        self.pose_mean, self.pose_var = calc_mean_variance(poses_tensor)       # pose mean, var ~ [75]
+        self.pose_center_mean, self.pose_center_var = self.pose_mean[3:5], self.pose_var[3:5]      # pose center has index 1,
+                                                                                                       # thus x,y is at indexes 3,4
+                                                                                                       # ~ [2]
+
         locations_tensor = std_normalize(locations_tensor, self.loc_mean, self.loc_var)
         poses_tensor= std_normalize(poses_tensor, self.pose_mean, self.pose_var)
         
