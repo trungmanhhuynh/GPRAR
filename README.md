@@ -101,7 +101,23 @@ Traj-STGCNN
 
 
 
-2. 
+## Train 
+
+Specify `args.train_data` and `args.val_data`, then run
+
+```
+python train.py
+```
+
+## Test
+
+Specify `args.test_data` and `args.test_data`, then run
+
+```
+python test.py --python test.py --resume save/model/model_epoch_49.pt
+
+```
+
 
 
 ## Plan 
