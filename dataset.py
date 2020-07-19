@@ -32,12 +32,14 @@ class TrajectoryDataset(Dataset):
 
 
         poses, locations, bboxes = [], [], []
-        video_names = [] 
+        video_names, image_names, person_ids = [], [], [] 
         for sample in self.data: 
             poses.append(sample['poses']) 
             locations.append(sample['locations'])
             bboxes.append(sample['bboxes'])
-
+            video_names.append(sample['video_names'][0])
+            image_names.append(sample['image_names'][obs_len-1])
+            person_ids.append(sample['person_ids'][0])
 
         # convert to tensor
         poses_tensor = torch.tensor(poses, dtype=torch.float)               # ~ [num_samples, traj_len, keypoints*pose_features]
@@ -52,7 +54,7 @@ class TrajectoryDataset(Dataset):
                                                                                                        # thus x,y is at indexes 3,4
                                                                                                        # ~ [2]
 
-        locations_tensor = std_normalize(locations_tensor, self.loc_mean, self.loc_var)
+        locations_tensor = std_normalize(locations_tensor, self.pose_center_mean, self.pose_center_var)
         poses_tensor= std_normalize(poses_tensor, self.pose_mean, self.pose_var)
         
 
@@ -66,6 +68,9 @@ class TrajectoryDataset(Dataset):
         self.poses = poses_tensor
         self.locations = locations_tensor
         self.num_samples = num_samples
+        self.video_names = video_names
+        self.image_names = image_names
+        self.person_ids = person_ids
 
     def __len__(self):
         return self.num_samples
@@ -77,7 +82,10 @@ class TrajectoryDataset(Dataset):
 
         sample = [
             self.poses[index, :, :self.obs_len, :, :],
-            self.locations[index, -self.pred_len:, :]
+            self.locations[index, -self.pred_len:, :],
+            self.video_names[index], 
+            self.image_names[index], 
+            self.person_ids[index]
         ]
 
         return sample

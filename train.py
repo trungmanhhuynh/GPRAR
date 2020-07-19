@@ -14,7 +14,7 @@ import numpy as np
 from torch import optim
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from net.model import Model56tu57 vc    as
+from net.model import Model
 from dataset import TrajectoryDataset
 from utils.utils import calculate_ade_fde
 
@@ -24,9 +24,9 @@ parser.add_argument('--obs_len', type=int, default=10)
 parser.add_argument('--pred_len', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=128, 
                     help='minibatch size')
-parser.add_argument('--train_data', type=str, default="train_val_data/JAAD/full_size/train_data.joblib", 
+parser.add_argument('--train_data', type=str, default="train_val_data/JAAD/mini_size/train_data.joblib", 
                     help='file used for training')
-parser.add_argument('--val_data', type=str,  default="train_val_data/JAAD/full_size/val_data.joblib", 
+parser.add_argument('--val_data', type=str,  default="train_val_data/JAAD/mini_size/val_data.joblib", 
                     help='file used for validation')
 parser.add_argument('--learning_rate', type=float, default=0.0001, 
                     help='learning rate')
@@ -169,9 +169,10 @@ for e in range(resume_epoch, args.nepochs):
         val_loss +=  mse_loss(pred_locations, gt_locations).item()
 
         # calculate ade/fde
-        ade, fde = calculate_ade_fde(gt_locations.data.cpu(), pred_locations.data.cpu(), dset_val.pose_center_mean, dset_val.pose_center_var)
+        ade, fde = calculate_ade_fde(gt_locations, pred_locations, dset_val.pose_center_mean, dset_val.pose_center_var)
         val_ade += ade 
         val_fde += fde
+
 
     val_loss /= len(loader_val)
     val_ade /=  len(loader_val)
@@ -184,7 +185,7 @@ for e in range(resume_epoch, args.nepochs):
 
 
     # 7. save model 
-    if( e % args.save_fre == 0):
+    if((e  +1) % args.save_fre  == 0):
         model_file = os.path.join(args.save_model_dir, "model_epoch_{}.pt".format(e))
         torch.save({'state_dict': model.state_dict(), 'e' :e}, model_file)
         print("saved model to file:", model_file)
