@@ -91,7 +91,7 @@ for test_it, samples in enumerate(loader_test):
     
     pose = Variable(samples[0])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
                                                        # e.g. ~ [128, 3, 10, 25, 1]
-    gt_locations =  Variable(samples[1])               # gt_locations ~ [batch_size, pred_len, 2]
+    gt_locations =  Variable(samples[2])               # gt_locations ~ [batch_size, pred_len, 2]
 
     if(args.use_cuda): 
         pose, gt_locations= pose.cuda(), gt_locations.cuda()
@@ -101,12 +101,12 @@ for test_it, samples in enumerate(loader_test):
     test_loss +=  mse_loss(pred_locations, gt_locations).item()
 
     # calculate ade/fde
-    ade, fde = calculate_ade_fde(gt_locations.data.cpu(), pred_locations.data.cpu(), dset_test.pose_center_mean, dset_test.pose_center_var)
+    ade, fde = calculate_ade_fde(gt_locations.data.cpu(), pred_locations.data.cpu(), dset_test.loc_mean, dset_test.loc_var)
     test_ade += ade 
     test_fde += fde
 
     # get trajectories
-    traj_dict = save_traj_json(traj_dict, pred_locations, samples[2], samples[3], samples[4], dset_test.pose_center_mean, dset_test.pose_center_var)
+    traj_dict = save_traj_json(traj_dict, pred_locations, samples[3], samples[4], samples[5], dset_test.loc_mean, dset_test.loc_var)
 
 
 test_loss /= len(loader_test)

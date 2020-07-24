@@ -24,9 +24,9 @@ parser.add_argument('--obs_len', type=int, default=10)
 parser.add_argument('--pred_len', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=128, 
                     help='minibatch size')
-parser.add_argument('--train_data', type=str, default="train_val_data/JAAD/mini_size/train_data.joblib", 
+parser.add_argument('--train_data', type=str, default="train_val_data/JAAD/full_size/train_data.joblib", 
                     help='file used for training')
-parser.add_argument('--val_data', type=str,  default="train_val_data/JAAD/mini_size/val_data.joblib", 
+parser.add_argument('--val_data', type=str,  default="train_val_data/JAAD/full_size/val_data.joblib", 
                     help='file used for validation')
 parser.add_argument('--learning_rate', type=float, default=0.0001, 
                     help='learning rate')
@@ -128,7 +128,7 @@ for e in range(resume_epoch, args.nepochs):
 
         pose = Variable(samples[0])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
                                                            # e.g. ~ [128, 3, 10, 25, 1]
-        gt_locations =  Variable(samples[1])               # gt_locations ~ [batch_size, pred_len, 2]
+        gt_locations =  Variable(samples[2])               # gt_locations ~ [batch_size, pred_len, 2]
 
         if(args.use_cuda): 
             pose, gt_locations= pose.cuda(), gt_locations.cuda()
@@ -159,7 +159,7 @@ for e in range(resume_epoch, args.nepochs):
         
         pose = Variable(samples[0])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
                                                            # e.g. ~ [128, 3, 10, 25, 1]
-        gt_locations =  Variable(samples[1])               # gt_locations ~ [batch_size, pred_len, 2]
+        gt_locations =  Variable(samples[2])               # gt_locations ~ [batch_size, pred_len, 2]
 
         if(args.use_cuda): 
             pose, gt_locations= pose.cuda(), gt_locations.cuda()
@@ -169,7 +169,7 @@ for e in range(resume_epoch, args.nepochs):
         val_loss +=  mse_loss(pred_locations, gt_locations).item()
 
         # calculate ade/fde
-        ade, fde = calculate_ade_fde(gt_locations, pred_locations, dset_val.pose_center_mean, dset_val.pose_center_var)
+        ade, fde = calculate_ade_fde(gt_locations, pred_locations, dset_val.loc_mean, dset_val.loc_var)
         val_ade += ade 
         val_fde += fde
 

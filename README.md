@@ -114,7 +114,7 @@ python train.py
 Specify `args.test_data` and `args.test_data`, then run
 
 ```
-python test.py --python test.py --resume save/model/model_epoch_49.pt
+python test.py --python test.py --resume path/to/checkpoint
 
 ```
 
