@@ -24,9 +24,9 @@ parser.add_argument('--obs_len', type=int, default=10)
 parser.add_argument('--pred_len', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=128, 
                     help='minibatch size')
-parser.add_argument('--train_data', type=str, default="train_val_data/JAAD/full_size/train_data.joblib", 
+parser.add_argument('--train_data', type=str, default="train_val_data/JAAD/mini_size/train_data.joblib", 
                     help='file used for training')
-parser.add_argument('--val_data', type=str,  default="train_val_data/JAAD/full_size/val_data.joblib", 
+parser.add_argument('--val_data', type=str,  default="train_val_data/JAAD/mini_size/val_data.joblib", 
                     help='file used for validation')
 parser.add_argument('--learning_rate', type=float, default=0.0001, 
                     help='learning rate')
@@ -120,11 +120,10 @@ for e in range(resume_epoch, args.nepochs):
     # 6.1 train 
     start_time = time.time()
     train_loss = 0 
-
+    
+    model.train()
     for train_it, samples in enumerate(loader_train):
         
-        model.train()
-        optimizer.zero_grad()    
 
         pose = Variable(samples[0])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
                                                            # e.g. ~ [128, 3, 10, 25, 1]
@@ -134,11 +133,11 @@ for e in range(resume_epoch, args.nepochs):
             pose, gt_locations= pose.cuda(), gt_locations.cuda()
 
         #forward
+        optimizer.zero_grad()    
         pred_locations = model(pose)                                      # pred_locations ~ [batch_size, pred_len, 2]
         loss = mse_loss(pred_locations, gt_locations)
         train_loss += loss.item()
         # backward
-        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)

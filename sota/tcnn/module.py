@@ -15,20 +15,20 @@ import chainer.functions as F
 import chainer.links as L
 
 
-class Linear_BN(chainer.Chain):
-    def __init__(self, nb_in, nb_out, no_bn=False):
-        super(Linear_BN, self).__init__()
-        self.no_bn = no_bn
-        with self.init_scope():
-            self.fc = L.Linear(nb_in, nb_out)
-            if not no_bn:
-                self.bn = L.BatchNormalization(nb_out)
+# class Linear_BN(chainer.Chain):
+#     def __init__(self, nb_in, nb_out, no_bn=False):
+#         super(Linear_BN, self).__init__()
+#         self.no_bn = no_bn
+#         with self.init_scope():
+#             self.fc = L.Linear(nb_in, nb_out)
+#             if not no_bn:
+#                 self.bn = L.BatchNormalization(nb_out)
 
-    def __call__(self, x):
-        if self.no_bn:
-            return self.fc(x)
-        else:
-            return F.relu(self.bn(self.fc(x)))
+#     def __call__(self, x):
+#         if self.no_bn:
+#             return self.fc(x)
+#         else:
+#             return F.relu(self.bn(self.fc(x)))
 
 
 class Conv_BN(chainer.Chain):
@@ -64,23 +64,23 @@ class DConv_BN(chainer.Chain):
             return F.relu(self.bn(self.conv(x)))
 
 
-class FC_Module(chainer.Chain):
-    def __init__(self, nb_in, nb_out, inter_list=[], no_act_last=False):
-        super(FC_Module, self).__init__()
-        self.nb_layers = len(inter_list) + 1
-        with self.init_scope():
-            if len(inter_list) == 0:
-                setattr(self, "fc1", Linear_BN(nb_in, nb_out, no_act_last))
-            else:
-                setattr(self, "fc1", Linear_BN(nb_in, inter_list[0]))
-                for lidx, (nin, nout) in enumerate(zip(inter_list[:-1], inter_list[1:])):
-                    setattr(self, "fc{}".format(lidx+2), Linear_BN(nin, nout))
-                setattr(self, "fc{}".format(self.nb_layers), Linear_BN(inter_list[-1], nb_out, no_act_last))
+# class FC_Module(chainer.Chain):
+#     def __init__(self, nb_in, nb_out, inter_list=[], no_act_last=False):
+#         super(FC_Module, self).__init__()
+#         self.nb_layers = len(inter_list) + 1
+#         with self.init_scope():
+#             if len(inter_list) == 0:
+#                 setattr(self, "fc1", Linear_BN(nb_in, nb_out, no_act_last))
+#             else:
+#                 setattr(self, "fc1", Linear_BN(nb_in, inter_list[0]))
+#                 for lidx, (nin, nout) in enumerate(zip(inter_list[:-1], inter_list[1:])):
+#                     setattr(self, "fc{}".format(lidx+2), Linear_BN(nin, nout))
+#                 setattr(self, "fc{}".format(self.nb_layers), Linear_BN(inter_list[-1], nb_out, no_act_last))
 
-    def __call__(self, h, no_act_last=False):
-        for idx in range(1, self.nb_layers + 1, 1):
-            h = getattr(self, "fc{}".format(idx))(h)
-        return h
+#     def __call__(self, h, no_act_last=False):
+#         for idx in range(1, self.nb_layers + 1, 1):
+#             h = getattr(self, "fc{}".format(idx))(h)
+        # return h
 
 
 class Conv_Module(chainer.Chain):

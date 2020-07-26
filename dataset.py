@@ -7,7 +7,7 @@ from utils.utils import calc_mean_variance, std_normalize
 
 class TrajectoryDataset(Dataset):
 	"""Dataloder for the Trajectory datasets"""
-	def __init__(self, data_file, obs_len=10, pred_len=10, flip=False, image_width=1280):
+	def __init__(self, data_file, obs_len=10, pred_len=10, flip=False, reshape_pose = True, image_width=1280):
 		"""
 		Args:
 			data_file: file name of train/val data. Data in data_file has the following structure:
@@ -27,6 +27,7 @@ class TrajectoryDataset(Dataset):
 		self.data = joblib.load(data_file)   
 		self.obs_len = obs_len
 		self.pred_len = pred_len
+		self.reshape_pose = reshape_pose
 		traj_len = obs_len + pred_len
 		pose_features = 3              # x, y, c
 		keypoints = 25                 # using openpose 25 keypoints
@@ -67,9 +68,10 @@ class TrajectoryDataset(Dataset):
 
 		# convert poses_tensor to shape [samples, pose_features (3), traj_len (20), keypoints (25), instances (1)]
 		num_samples = poses_tensor.shape[0]
-		poses_tensor = poses_tensor.view(num_samples, traj_len, keypoints, pose_features) 
-		poses_tensor = poses_tensor.permute(0, 3, 1, 2).contiguous() 									# ~[num_samples, pose_features, traj_len, keypoints]
-		poses_tensor = poses_tensor.unsqueeze(4)                    								    # ~[num_samples, pose_features, traj_len, keypoints, instances]
+		if(reshape_pose):
+			poses_tensor = poses_tensor.view(num_samples, traj_len, keypoints, pose_features) 
+			poses_tensor = poses_tensor.permute(0, 3, 1, 2).contiguous() 									# ~[num_samples, pose_features, traj_len, keypoints]
+			poses_tensor = poses_tensor.unsqueeze(4)                    								    # ~[num_samples, pose_features, traj_len, keypoints, instances]
 
 
 		self.poses = poses_tensor
@@ -87,9 +89,7 @@ class TrajectoryDataset(Dataset):
 		"""
 			pose: size ~ [batch_size, pose_features, obs_len, keypoints, instances] or [N, C, T, V, M]
 		"""
-
 		sample = [
-			self.poses[index, :, :self.obs_len, :, :],
 			self.pose_locations[index, :self.obs_len, :],
 			self.gt_locations[index, -self.pred_len:, :],
 			self.video_names[index], 
@@ -97,6 +97,14 @@ class TrajectoryDataset(Dataset):
 			self.person_ids[index]
 		]
 
+
+		if(self.reshape_pose):
+			sample = [self.poses[index, :, :self.obs_len, :, :]] + sample
+		else: 
+			sample = [self.poses[index, :self.obs_len, :]] + sample
+
+
+		
 		return sample
 
 
