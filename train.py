@@ -14,7 +14,7 @@ import numpy as np
 from torch import optim
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from net.model import Model
+from net.model2 import Model
 from dataset import TrajectoryDataset
 from utils.utils import calculate_ade_fde
 
@@ -124,6 +124,7 @@ for e in range(resume_epoch, args.nepochs):
     model.train()
     for train_it, samples in enumerate(loader_train):
         
+        pose_locations = Variable(samples[1])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
 
         pose = Variable(samples[0])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
                                                            # e.g. ~ [128, 3, 10, 25, 1]
@@ -131,10 +132,11 @@ for e in range(resume_epoch, args.nepochs):
 
         if(args.use_cuda): 
             pose, gt_locations= pose.cuda(), gt_locations.cuda()
+            pose_locations = pose_locations.cuda()
 
         #forward
         optimizer.zero_grad()    
-        pred_locations = model(pose)                                      # pred_locations ~ [batch_size, pred_len, 2]
+        pred_locations = model(pose_locations, pose)                                      # pred_locations ~ [batch_size, pred_len, 2]
         loss = mse_loss(pred_locations, gt_locations)
         train_loss += loss.item()
         # backward
@@ -156,15 +158,18 @@ for e in range(resume_epoch, args.nepochs):
     val_loss = 0 ;  val_ade = 0 ; val_fde = 0 
     for val_it, samples in enumerate(loader_val):
         
+
+        pose_locations = Variable(samples[1])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
         pose = Variable(samples[0])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
                                                            # e.g. ~ [128, 3, 10, 25, 1]
         gt_locations =  Variable(samples[2])               # gt_locations ~ [batch_size, pred_len, 2]
 
         if(args.use_cuda): 
             pose, gt_locations= pose.cuda(), gt_locations.cuda()
+            pose_locations = pose_locations.cuda()
 
         #forward
-        pred_locations = model(pose)                                      # pred_locations ~ [batch_size, pred_len, 2]
+        pred_locations = model(pose_locations, pose)                                      # pred_locations ~ [batch_size, pred_len, 2]
         val_loss +=  mse_loss(pred_locations, gt_locations).item()
 
         # calculate ade/fde
