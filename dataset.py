@@ -2,7 +2,7 @@ import joblib
 import torch
 import numpy
 from torch.utils.data import Dataset
-from utils.utils import calc_mean_variance, std_normalize
+from utils.utils import calc_mean_variance, std_normalize, std_denormalize
 
 
 class TrajectoryDataset(Dataset):
@@ -45,38 +45,42 @@ class TrajectoryDataset(Dataset):
 			person_ids.append(sample['person_ids'][0])
 
 		# convert to tensor
-		poses_tensor = torch.tensor(poses, dtype=torch.float)                                           # ~ [num_samples, traj_len, keypoints*pose_features]
-		imputed_poses_tensor =  torch.tensor(imputed_poses, dtype=torch.float)    
-		gt_locations_tensor = torch.tensor(gt_locations, dtype=torch.float)                             # ~ [num_samples, traj_len, 2]
-		bboxes_tensor = torch.tensor(bboxes, dtype=torch.float)                  						# ~ [num_samples, traj_len, 4]
-		pose_location_tensor = 0.5*(imputed_poses_tensor[:,:,3:5] + imputed_poses_tensor[:,:,24:26])    # middle of  keypoints 1 and 8.
-
-
-		# normalize data 
-		self.loc_mean, self.loc_var = calc_mean_variance(gt_locations_tensor)                           # location mean, var ~ [2]
-		self.pose_mean, self.pose_var = calc_mean_variance(poses_tensor)                                # pose mean, var ~ [75]
-		# self.pose_center_mean, self.pose_center_var = self.pose_mean[3:5], self.pose_var[3:5]         # pose center has index 1,
-		#                                                                                               # thus x,y is at indexes 3,4
-		#                                                                                               # ~ [2]
-
-		gt_locations_tensor = std_normalize(gt_locations_tensor, self.loc_mean, self.loc_mean)          # use same mean & var to    
-		pose_location_tensor = std_normalize(pose_location_tensor, self.loc_mean, self.loc_mean)        # normalize ground-truth location, 
-																										# and pose locations.
-
-		poses_tensor= std_normalize(poses_tensor, self.pose_mean, self.pose_var)
+		poses = torch.tensor(poses, dtype=torch.float)                                          # ~ (num_samples, traj_len, keypoints*pose_features)
+		imputed_poses =  torch.tensor(imputed_poses, dtype=torch.float)    						# ~ (num_samples, traj_len, keypoints*pose_features)
+		gt_locations = torch.tensor(gt_locations, dtype=torch.float)                            # ~ (num_samples, traj_len, 2)
+		bboxes = torch.tensor(bboxes, dtype=torch.float)                  						# ~ (num_samples, traj_len, 4)
 		
 
-		# convert poses_tensor to shape [samples, pose_features (3), traj_len (20), keypoints (25), instances (1)]
-		num_samples = poses_tensor.shape[0]
+		# calculate raw location and imputed location
+		imputed_locations =  imputed_poses[:,:,24:26]    										# keypoint 8 ~ (num_samples, traj_len, 2)
+		locations =  poses[:,:,24:26]    										# keypoint 8 ~ (num_samples, traj_len, 2)
+																				# 
+
+
+		# calculate mean/var
+		self.loc_mean, self.loc_var = calc_mean_variance(gt_locations)                          # location mean, var ~ [2]
+		self.pose_mean, self.pose_var = calc_mean_variance(poses)                               # pose mean, var ~ [75]
+
+
+		# normalize data
+		gt_locations = std_normalize(gt_locations, self.loc_mean, self.loc_var)          		   
+		imputed_locations = std_normalize(imputed_locations, self.loc_mean, self.loc_var)        		
+		locations = std_normalize(locations, self.loc_mean, self.loc_var)        																							
+		poses = std_normalize(poses, self.pose_mean, self.pose_var)
+		
+
+		# convert poses to shape [samples, pose_features (3), traj_len (20), keypoints (25), instances (1)]
+		num_samples = poses.shape[0]
 		if(reshape_pose):
-			poses_tensor = poses_tensor.view(num_samples, traj_len, keypoints, pose_features) 
-			poses_tensor = poses_tensor.permute(0, 3, 1, 2).contiguous() 									# ~[num_samples, pose_features, traj_len, keypoints]
-			poses_tensor = poses_tensor.unsqueeze(4)                    								    # ~[num_samples, pose_features, traj_len, keypoints, instances]
+			poses = poses.view(num_samples, traj_len, keypoints, pose_features) 
+			poses = poses.permute(0, 3, 1, 2).contiguous() 									# ~[num_samples, pose_features, traj_len, keypoints]
+			poses = poses.unsqueeze(4)                    								    # ~[num_samples, pose_features, traj_len, keypoints, instances]
 
 
-		self.poses = poses_tensor
-		self.pose_locations = pose_location_tensor
-		self.gt_locations = gt_locations_tensor
+		self.poses = poses
+		self.imputed_locations = imputed_locations
+		self.locations = locations 
+		self.gt_locations = gt_locations
 		self.num_samples = num_samples
 		self.video_names = video_names
 		self.image_names = image_names
@@ -89,19 +93,20 @@ class TrajectoryDataset(Dataset):
 		"""
 			pose: size ~ [batch_size, pose_features, obs_len, keypoints, instances] or [N, C, T, V, M]
 		"""
-		sample = [
-			self.pose_locations[index, :self.obs_len, :],
-			self.gt_locations[index, -self.pred_len:, :],
-			self.video_names[index], 
-			self.image_names[index], 
-			self.person_ids[index]
-		]
+		sample = {
+			'locations': self.locations[index, : self.obs_len, :],
+			'imputed_locations': self.imputed_locations[index, :self.obs_len, :],
+			'gt_locations': self.gt_locations[index, -self.pred_len:, :],
+			'video_names' : self.video_names[index], 
+			'image_names' : self.image_names[index], 
+			'person_ids' : self.person_ids[index]
+		}
 
 
 		if(self.reshape_pose):
-			sample = [self.poses[index, :, :self.obs_len, :, :]] + sample
+			sample['poses'] = self.poses[index, :, :self.obs_len, :, :]
 		else: 
-			sample = [self.poses[index, :self.obs_len, :]] + sample
+			sample['poses'] = self.poses[index, :self.obs_len, :]
 
 
 		
