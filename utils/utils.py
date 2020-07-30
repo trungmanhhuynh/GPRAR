@@ -30,7 +30,7 @@ def std_denormalize(data_in, mean, var):
     data_out = data_in*var + mean
     return data_out
 
-def calculate_ade_fde(traj_gt, traj_pred, mean, var):
+def calculate_ade_fde(traj_gt, traj_pred, mean , var ):
 
 
     # pred_locations ~ tensor [batch_size, pred_len, 2]
@@ -43,8 +43,6 @@ def calculate_ade_fde(traj_gt, traj_pred, mean, var):
     # denormalize 
     traj_pred_abs = std_denormalize(traj_pred, mean, var)
     traj_gt_abs = std_denormalize(traj_gt, mean, var)
-
-
 
     temp = (traj_pred_abs - traj_gt_abs)**2
     ade = torch.sqrt(temp[:,:,0] + temp[:,:,1])

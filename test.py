@@ -14,7 +14,7 @@ import numpy as np
 from torch import optim
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from net.model import Model
+from net.model2 import Model
 from dataset import TrajectoryDataset
 from utils.utils import calculate_ade_fde, save_traj_json
 
@@ -89,24 +89,26 @@ test_loss = 0 ;  test_ade = 0 ; test_fde = 0
 traj_dict = {'video_names': [], 'image_names': [],  'person_ids': [], 'traj_gt': [], 'traj_pred': [], 'pose': []}
 for test_it, samples in enumerate(loader_test):
     
-    pose = Variable(samples[0])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-                                                       # e.g. ~ [128, 3, 10, 25, 1]
-    gt_locations =  Variable(samples[2])               # gt_locations ~ [batch_size, pred_len, 2]
+    locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+    poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
+    gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
     if(args.use_cuda): 
-        pose, gt_locations= pose.cuda(), gt_locations.cuda()
+        poses, gt_locations= poses.cuda(), gt_locations.cuda()
+        locations = locations.cuda()
 
     #forward
-    pred_locations = model(pose)                                      # pred_locations ~ [batch_size, pred_len, 2]
+    pred_locations = model(locations, poses)                                      # pred_locations ~ [batch_size, pred_len, 2]
     test_loss +=  mse_loss(pred_locations, gt_locations).item()
 
     # calculate ade/fde
-    ade, fde = calculate_ade_fde(gt_locations.data.cpu(), pred_locations.data.cpu(), dset_test.loc_mean, dset_test.loc_var)
+    ade, fde = calculate_ade_fde(gt_locations, pred_locations, dset_test.loc_mean, dset_test.loc_var)
     test_ade += ade 
     test_fde += fde
 
     # get trajectories
-    traj_dict = save_traj_json(traj_dict, pred_locations, samples[3], samples[4], samples[5], dset_test.loc_mean, dset_test.loc_var)
+    traj_dict = save_traj_json(traj_dict, pred_locations, samples['video_names'], samples['image_names'], samples['person_ids'], \
+                               dset_test.loc_mean, dset_test.loc_var)
 
 
 test_loss /= len(loader_test)
