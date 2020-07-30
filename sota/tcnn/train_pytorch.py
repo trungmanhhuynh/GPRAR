@@ -21,6 +21,7 @@ from torch.autograd import Variable
 from dataset import TrajectoryDataset
 from utils.utils import calculate_ade_fde
 from sota.tcnn.model_pytorch import TCNN, TCNN_POSE
+from torch.optim.lr_scheduler import StepLR
 
 
 parser = argparse.ArgumentParser()
@@ -32,13 +33,13 @@ parser.add_argument('--train_data', type=str, default="train_val_data/JAAD/mini_
                     help='file used for training')
 parser.add_argument('--val_data', type=str,  default="train_val_data/JAAD/mini_size/val_data.joblib", 
                     help='file used for validation')
-parser.add_argument('--learning_rate', type=float, default=0.0001, 
+parser.add_argument('--learning_rate', type=float, default=0.001, 
                     help='learning rate')
 parser.add_argument('--optim', type=str, default='Adam', 
                     help="ctype of optimizer: 'rmsprop' 'adam'")
 parser.add_argument('--grad_clip', type=float, default=10., 
                     help='clip gradients to this magnitude')
-parser.add_argument('--nepochs', type=int, default= 100, 
+parser.add_argument('--nepochs', type=int, default= 50, 
                     help='number of epochs')
 parser.add_argument('--info_fre', type=int, default= 10, 
                     help='print out log every x interations')
@@ -46,10 +47,13 @@ parser.add_argument('--save_fre', type=int, default= 5,
                     help='save model every x epochs')
 parser.add_argument('--use_cuda', action='store_true', default= True, 
                     help = 'use gpu')
-parser.add_argument('--save_dir', type=str, default='./save',
+parser.add_argument('--save_dir', type=str, default='sota/tcnn/save/tcnn',
                      help='save directory')
 parser.add_argument('--resume', type=str, default="",
                      help='resume a trained model?')
+parser.add_argument('--model', type=str, default="tcnn_pose",
+                     help='supporting tcnn or tcnn_pose')
+
 
 args = parser.parse_args()
 
@@ -65,7 +69,8 @@ print(args)
 # Fixed the seed
 np.random.seed(1)
 torch.manual_seed(1)
-
+# torch.backends.cudnn.deterministic = True
+# torch.backends.cudnn.benchmark = False
 
 # 1.prepare data
 dset_train = TrajectoryDataset(
@@ -99,9 +104,15 @@ print("train/val datasize = {}/{}".format(len(dset_train), len(dset_val)))
 
 
 # 2.load model
-model = TCNN_POSE()
+if(args.model == 'tcnn_pose'):
+    model = TCNN_POSE(pred_len = args.pred_len)
+if(args.model == 'tcnn'):
+    model = TCNN(pred_len = args.pred_len)
+
+
+
 if(args.use_cuda) : model = model.cuda() 
-print(model)
+#print(model)
 #model.apply(weights_init)
 
 
@@ -110,6 +121,7 @@ mse_loss = torch.nn.MSELoss()
 
 # 4. train settings
 optimizer = getattr(optim, args.optim)(model.parameters(), lr = args.learning_rate)
+scheduler = StepLR(optimizer, step_size=10, gamma=0.5)
 
 
 # 5. load check points ?
@@ -129,24 +141,33 @@ for e in range(resume_epoch, args.nepochs):
     train_loss = 0 
     
     model.train()
+
     for train_it, samples in enumerate(loader_train):
         
+        locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+        poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
+        gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
-        pose_locations = Variable(samples[1])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-                                                           # e.g. ~ [128, 3, 10, 25, 1]
 
-        pose = Variable(samples[0])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-                                                           # e.g. ~ [128, 3, 10, 25, 1]                                                  
-        gt_locations =  Variable(samples[2])               # gt_locations ~ [batch_size, pred_len, 2]
-
+        #print(locations[0])
+        #input("here")
         if(args.use_cuda): 
-            pose_locations, gt_locations= pose_locations.cuda(), gt_locations.cuda()
-            pose = pose.cuda()
+            poses, gt_locations= poses.cuda(), gt_locations.cuda()
+            locations = locations.cuda()
+
+        if(args.model == 'tcnn'):
+            pred_locations = model(locations)                                      # pred_locations ~ [batch_size, pred_len, 2]
+
+        elif(args.model == 'tcnn_pose'):
+            pred_locations = model(locations, poses)                                      # pred_locations ~ [batch_size, pred_len, 2]
+
+
+
         #forward
         optimizer.zero_grad()    
-        pred_locations = model(pose_locations, pose)                                      # pred_locations ~ [batch_size, pred_len, 2]
         loss = mse_loss(pred_locations, gt_locations)
         train_loss += loss.item()
+        
         # backward
         loss.backward()
         optimizer.step()
@@ -166,18 +187,23 @@ for e in range(resume_epoch, args.nepochs):
     val_loss = 0 ;  val_ade = 0 ; val_fde = 0 
     for val_it, samples in enumerate(loader_val):
         
-        pose_locations = Variable(samples[1])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-
-        pose = Variable(samples[0])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-
-        gt_locations =  Variable(samples[2])               # gt_locations ~ [batch_size, pred_len, 2]
+        # get input data
+        locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+        poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
+        gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
         if(args.use_cuda): 
-            pose_locations, gt_locations= pose_locations.cuda(), gt_locations.cuda()
-            pose = pose.cuda()
+            poses, gt_locations= poses.cuda(), gt_locations.cuda()
+            locations = locations.cuda()
 
-        #forward
-        pred_locations = model(pose_locations, pose)                                      # pred_locations ~ [batch_size, pred_len, 2]
+        if(args.model == 'tcnn'):
+            pred_locations = model(locations)                                      # pred_locations ~ [batch_size, pred_len, 2]
+
+        elif(args.model == 'tcnn_pose'):
+            pred_locations = model(locations, poses)                                      # pred_locations ~ [batch_size, pred_len, 2]
+
+
+        # forward
         val_loss +=  mse_loss(pred_locations, gt_locations).item()
 
         # calculate ade/fde
@@ -191,9 +217,10 @@ for e in range(resume_epoch, args.nepochs):
     val_fde /= len(loader_val)
     stop_time = time.time()
 
+    scheduler.step()    # update learning rate
 
-    print("epoch:{} train_loss:{:.5f} val_loss:{:.5f} val_ade:{:.2f} val_fde:{:.2f} time(ms):{:.2f}".format(
-        e, train_loss, val_loss, val_ade, val_fde, (stop_time - start_time)*1000))
+    print("epoch:{} lr:{} train_loss:{:.5f} val_loss:{:.5f} val_ade:{:.2f} val_fde:{:.2f} time(ms):{:.2f}".format(
+        e, scheduler.get_lr(), train_loss, val_loss, val_ade, val_fde, (stop_time - start_time)*1000))
 
 
     # 7. save model 

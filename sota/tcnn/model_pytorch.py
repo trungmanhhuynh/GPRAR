@@ -63,10 +63,10 @@ class deconv2d(nn.Module):
 
 
 class TCNN(nn.Module):
-	def __init__(self):
+	def __init__(self, pred_len = 10):
 		super().__init__()
 
-
+		self.pred_len = pred_len
 		self.encoder = nn.Sequential(
 			conv2d(in_channels = 2, out_channels = 32, kernel_size = 3, stride = 1,  padding = 0), 
 			conv2d(in_channels = 32, out_channels = 64, kernel_size = 3, stride = 1,  padding = 0), 
@@ -105,9 +105,10 @@ class TCNN(nn.Module):
 
 
 class TCNN_POSE(nn.Module):
-	def __init__(self):
+	def __init__(self, pred_len = 10):
 		super().__init__()
 
+		self.pred_len = pred_len
 
 		self.encoder_location = nn.Sequential(
 			conv2d(in_channels = 2, out_channels = 32, kernel_size = 3, stride = 1,  padding = 0), 
@@ -138,7 +139,8 @@ class TCNN_POSE(nn.Module):
 
 		#self.last = nn.Linear(2, 2)
 
-	def __call__(self, x, pose):	
+	def __call__(self, x, pose ):	
+
 
 		x = x.permute(0, 2, 1).contiguous()
 		x = x.unsqueeze(3)					# x ~ (batch_size, in_channels (2), obs_len (10), 1)
