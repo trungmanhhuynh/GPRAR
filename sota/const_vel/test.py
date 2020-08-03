@@ -80,26 +80,27 @@ test_loss = 0 ;  test_ade = 0 ; test_fde = 0
 traj_dict = {'video_names': [], 'image_names': [],  'person_ids': [], 'traj_pred': []}
 for test_it, samples in enumerate(loader_test):
     
-    pose_locations = Variable(samples[1])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+    locations = Variable(samples['locations'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
                                                        # e.g. ~ [128, 3, 10, 25, 1]
-    gt_locations =  Variable(samples[2])               # gt_locations ~ [batch_size, pred_len, 2]
+    gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
     if(args.use_cuda): 
-        pose_locations, gt_locations= pose_locations.cuda(), gt_locations.cuda()
+        locations, gt_locations= locations.cuda(), gt_locations.cuda()
 
     #forward
-    pred_locations = model(pose_locations)  
+    pred_locations = model(locations)  
     print(pred_locations.shape)                                    # pred_locations ~ [batch_size, pred_len, 2]
 
     test_loss +=  mse_loss(pred_locations, gt_locations).item()
 
     # calculate ade/fde
-    ade, fde = calculate_ade_fde(gt_locations.data.cpu(), pred_locations.data.cpu(), dset_test.loc_mean, dset_test.loc_var)
+    ade, fde = calculate_ade_fde(gt_locations, pred_locations, dset_test.loc_mean, dset_test.loc_var)
     test_ade += ade 
     test_fde += fde
 
     # get trajectories
-    traj_dict = save_traj_json(traj_dict, pred_locations, samples[3], samples[4], samples[5], dset_test.loc_mean, dset_test.loc_var)
+    traj_dict = save_traj_json(traj_dict, pred_locations, samples['video_names'], samples['image_names'], samples['person_ids'], \
+                               dset_test.loc_mean, dset_test.loc_var)
 
 
 test_loss /= len(loader_test)

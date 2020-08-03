@@ -155,3 +155,4 @@ for key in traj_dict:
 traj_file = os.path.join(args.save_dir, "trajs.json")
 with open(traj_file, 'w') as f:
     json.dump(traj_dict, f)
+print("Saved traj file: {}".format(traj_file))

@@ -80,7 +80,9 @@ By default, this script plots both pose and bounding box on the same images.
 ## Generate train/val data
 
   To generate train/val data, run the following: 
+```
 
+```
 
   Please double check and make sure the processed data folder is as follows: 
 

@@ -20,7 +20,7 @@ python sota/tcnn/test_pytorch.py --model tcnn --resume sota/tcnn/save/tcnn/model
 **Train**  
 
 ```
-python sota/tcnn/train_pytorch.py --nepochs 50 --pred_len 10 --model tcnn --save_dir sota/tcnn/save/tcnn/ 
+python sota/tcnn/train_pytorch.py --nepochs 50 --pred_len 10 --model tcnn_pose --save_dir sota/tcnn/save/tcnn_pose/ 
 ```
 
 by default, the trained network is saved at sota/tcnn/save/model

@@ -83,10 +83,15 @@ class TCNN(nn.Module):
 			deconv2d(in_channels = 256, out_channels = 128, kernel_size = 3, stride = 1,  padding = 0), 
 			deconv2d(in_channels = 128, out_channels = 64, kernel_size = 3, stride = 1,  padding = 0), 
 			deconv2d(in_channels = 64, out_channels = 32, kernel_size = 3, stride = 1,  padding = 0), 
-			conv2d(in_channels = 32, out_channels = 2, kernel_size = 1, stride = 1,  padding = 0, use_bn = False), 
+			conv2d(in_channels = 32, out_channels = 2, kernel_size = 1, stride = 1,  padding = 0, use_bn = False)
 		)
 
-		#self.last = nn.Linear(2, 2)
+		# n_extra_deconv2d = (pred_len - 10)/2 
+		# for i in range(n_extra_deconv2d):
+		# 	self.decoder.add_module(deconv2d(in_channels = 32, out_channels = 32, kernel_size = 3, stride = 1,  padding = 0))
+
+
+
 
 	def __call__(self, x):	
 
@@ -96,7 +101,7 @@ class TCNN(nn.Module):
 		y = self.encoder(x)
 		y = self.intermediate(y)
 		y = self.decoder(y)					# y ~ (batch_size, out_channels, pred_len (10), 1)
-		#y = self.last(y)
+		y = self.last(y)
 
 		y = y.squeeze(3)					# x ~ (batch_size, in_channels (2), obs_len (10), 1)
 		y = y.permute(0, 2, 1).contiguous()

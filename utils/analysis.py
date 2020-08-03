@@ -106,7 +106,7 @@ if __name__ == '__main__':
 
         if(occlusion_percent >=0 and occlusion_percent <0.1):
             ade_r0 += ade; fde_r0 += fde; num_r0 += 1
-        elif(occlusion_percent >= 0.1 and occlusion_percent <0.2 ):
+        if(occlusion_percent >= 0.1 and occlusion_percent <0.2 ):
             ade_r1 += ade; fde_r1 += fde; num_r1 += 1
         elif(occlusion_percent>=0.2 and occlusion_percent < 0.3):
             ade_r2 += ade; fde_r2 += fde; num_r2 += 1
