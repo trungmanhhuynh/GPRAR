@@ -53,7 +53,8 @@ parser.add_argument('--resume', type=str, default="",
                      help='resume a trained model?')
 parser.add_argument('--model', type=str, default="tcnn_pose",
                      help='supporting tcnn or tcnn_pose')
-
+parser.add_argument('--missing_part', type=str, default= None,
+                     help='which part is missing -- for studying')
 
 args = parser.parse_args()
 
@@ -78,7 +79,8 @@ dset_train = TrajectoryDataset(
         obs_len=args.obs_len,
         pred_len=args.pred_len,
         flip = False, 
-        reshape_pose = False
+        reshape_pose = False,
+        missing_part = args.missing_part 
         )
 
 loader_train = DataLoader(
@@ -92,7 +94,8 @@ dset_val = TrajectoryDataset(
         obs_len=args.obs_len,
         pred_len=args.pred_len,
         flip = False,
-        reshape_pose = False
+        reshape_pose = False,
+        missing_part = args.missing_part  
         )
 
 loader_val = DataLoader(
@@ -144,13 +147,11 @@ for e in range(resume_epoch, args.nepochs):
 
     for train_it, samples in enumerate(loader_train):
         
-        locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-        poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
-        gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
+        locations = Variable(samples['gt_obs_locations'])              # location ~ (batch_size, traj_len, 2)   
+        poses = Variable(samples['imputed_poses'])                      # pose ~ (batch_size, traj_len, 75)
+        gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ (batch_size, traj_len, 2) 
 
 
-        #print(locations[0])
-        #input("here")
         if(args.use_cuda): 
             poses, gt_locations= poses.cuda(), gt_locations.cuda()
             locations = locations.cuda()
@@ -160,7 +161,6 @@ for e in range(resume_epoch, args.nepochs):
 
         elif(args.model == 'tcnn_pose'):
             pred_locations = model(locations, poses)                                      # pred_locations ~ [batch_size, pred_len, 2]
-
 
 
         #forward
@@ -188,8 +188,8 @@ for e in range(resume_epoch, args.nepochs):
     for val_it, samples in enumerate(loader_val):
         
         # get input data
-        locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-        poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
+        locations = Variable(samples['gt_obs_locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+        poses = Variable(samples['imputed_poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
         gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
         if(args.use_cuda): 

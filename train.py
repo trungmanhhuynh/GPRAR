@@ -14,10 +14,11 @@ import numpy as np
 from torch import optim
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
+from torch.optim.lr_scheduler import StepLR
+
 from net.model2 import Model
 from dataset import TrajectoryDataset
 from utils.utils import calculate_ade_fde
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--obs_len', type=int, default=10)
@@ -28,7 +29,7 @@ parser.add_argument('--train_data', type=str, default="train_val_data/JAAD/mini_
 					help='file used for training')
 parser.add_argument('--val_data', type=str,  default="train_val_data/JAAD/mini_size/val_data.joblib", 
 					help='file used for validation')
-parser.add_argument('--learning_rate', type=float, default=0.0001, 
+parser.add_argument('--learning_rate', type=float, default=0.001, 
 					help='learning rate')
 parser.add_argument('--optim', type=str, default='Adam', 
 					help="ctype of optimizer: 'rmsprop' 'adam'")
@@ -46,6 +47,8 @@ parser.add_argument('--save_dir', type=str, default='./save',
 					 help='save directory')
 parser.add_argument('--resume', type=str, default="",
 					 help='resume a trained model?')
+parser.add_argument('--missing_part', type=str, default= None,
+                     help='which part is missing -- for studying')
 
 args = parser.parse_args()
 
@@ -68,7 +71,9 @@ dset_train = TrajectoryDataset(
 		args.train_data,
 		obs_len=args.obs_len,
 		pred_len=args.pred_len,
-		flip = False
+		reshape_pose = True,
+		flip = False,
+		missing_part = args.missing_part  
 		)
 
 loader_train = DataLoader(
@@ -81,7 +86,9 @@ dset_val = TrajectoryDataset(
 		args.val_data,
 		obs_len=args.obs_len,
 		pred_len=args.pred_len,
-		flip = False
+		reshape_pose = True,
+		flip = False,
+		missing_part = args.missing_part
 		)
 
 loader_val = DataLoader(
@@ -103,6 +110,7 @@ mse_loss = torch.nn.MSELoss()
 
 # 4. train settings
 optimizer = getattr(optim, args.optim)(model.parameters(), lr = args.learning_rate)
+scheduler = StepLR(optimizer, step_size= 20, gamma=0.5)
 
 
 # 5. load check points ?
@@ -124,8 +132,8 @@ for e in range(resume_epoch, args.nepochs):
 	model.train()
 	for train_it, samples in enumerate(loader_train):
 		
-		locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-		poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
+		locations = Variable(samples['gt_obs_locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+		poses = Variable(samples['imputed_poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
 		gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
 		if(args.use_cuda): 
@@ -161,8 +169,8 @@ for e in range(resume_epoch, args.nepochs):
 	for val_it, samples in enumerate(loader_val):
 		
 
-		locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-		poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
+		locations = Variable(samples['gt_obs_locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+		poses = Variable(samples['imputed_poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
 		gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
 		if(args.use_cuda): 
@@ -183,10 +191,11 @@ for e in range(resume_epoch, args.nepochs):
 	val_ade /=  len(loader_val)
 	val_fde /= len(loader_val)
 	stop_time = time.time()
+	scheduler.step()    # update learning rate
 
 
-	print("epoch:{} train_loss:{:.5f} val_loss:{:.5f} val_ade:{:.2f} val_fde:{:.2f} time(ms):{:.2f}".format(
-		e, train_loss, val_loss, val_ade, val_fde, (stop_time - start_time)*1000))
+	print("epoch:{} lr:{} train_loss:{:.5f} val_loss:{:.5f} val_ade:{:.2f} val_fde:{:.2f} time(ms):{:.2f}".format(
+		e, scheduler.get_lr(), train_loss, val_loss, val_ade, val_fde, (stop_time - start_time)*1000))
 
 
 	# 7. save model 

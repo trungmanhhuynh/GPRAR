@@ -101,7 +101,7 @@ class TCNN(nn.Module):
 		y = self.encoder(x)
 		y = self.intermediate(y)
 		y = self.decoder(y)					# y ~ (batch_size, out_channels, pred_len (10), 1)
-		y = self.last(y)
+		#y = self.last(y)
 
 		y = y.squeeze(3)					# x ~ (batch_size, in_channels (2), obs_len (10), 1)
 		y = y.permute(0, 2, 1).contiguous()

@@ -15,11 +15,13 @@ from itertools import islice
 from sklearn.impute import KNNImputer
 
 
+# parameters
 PROCESSED_LOCATION_DIR = "/home/manhh/github/Traj-STGCNN/processed_data/JAAD/location"
 PROCESSED_POSE_ID_DIR = "/home/manhh/github/Traj-STGCNN/processed_data/JAAD/pose_id"
 TRAIN_VAL_DIR = "/home/manhh/github/Traj-STGCNN/train_val_data/JAAD"
-DATA_SIZE = "full_size"			# use `full_size` or `mini_size`
+DATA_SIZE = "mini_size"			# use `full_size` or `mini_size`
 NUM_KEYPOINTS = 75 
+FULL_POSE = True 				# only extract poses that all keypoints are present
 
 random.seed(1)
 
@@ -38,39 +40,16 @@ def impute_poses(poses):
 	"""
 
 	valid_sample = True; 
-	# print("Before imputing poses = ")
 	poses_array = np.array(poses)
-	#if(poses_array.shape[1] != 75):
-	#print(poses_array.shape)
-	# 	print(poses_array[0,:])
-
-
 
 
 	imputer = KNNImputer(missing_values=0, n_neighbors=5, weights="uniform")
 	imputed_poses = imputer.fit_transform(poses)
 
-	# print("After imputing poses = ")
-		
 	imputed_poses_array = np.array(imputed_poses)
-	#print(imputed_poses_array.shape)
-	# print(imputed_poses_array[0,:])
-
-	# print(imputed_poses_array.shape)
-
 
 	if(imputed_poses_array.shape[1] != NUM_KEYPOINTS):
 		valid_sample = False			# return -1 if shape is not right
-		# print(poses_array.shape)
-		# print(imputed_poses_array.shape)
-
-		# input("here")	
-
-
-	# if(imputed_poses_array.shape[1] != 75):
-	# 	print(imputed_poses_array.shape)
-	# 	print(imputed_poses_array[0,:])
-	# 	input("here")
 
 	return imputed_poses, valid_sample 
 
@@ -149,6 +128,19 @@ def generate_samples(video_data, video_name, traj_len = 20):
 			if(gap > traj_len): continue
 
 
+			#
+			if(FULL_POSE):
+				exist_zeros = False;
+				for t in range(traj_len):
+					for k in range(NUM_KEYPOINTS):
+						if(imputed_poses[t][k] == 0):
+							exist_zeros = True;
+
+				if(exist_zeros): 
+					continue
+
+				poses = imputed_poses
+
 			# add to sample list
 			video_samples.append({
 					'video_names': video_names, 
@@ -162,7 +154,6 @@ def generate_samples(video_data, video_name, traj_len = 20):
 
 			# print(video_samples)
 			# input("here")
-
 
 	return video_samples, len(video_samples), num_nonvalid
 

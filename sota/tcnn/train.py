@@ -14,7 +14,6 @@ import sys
 sys.path.append("/home/manhh/github/Traj-STGCNN")
 
 import numpy as np
-
 import chainer
 import chainer.functions as F
 from chainer import optimizers, Variable, cuda, serializers

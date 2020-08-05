@@ -32,6 +32,8 @@ parser.add_argument('--save_dir', type=str, default='./save',
                      help='save directory')
 parser.add_argument('--resume', type=str, default="",
                      help='resume a trained model?')
+parser.add_argument('--missing_kpt', type=int, default= None,
+                     help='which kpt is missing -- for studying')
 
 
 
@@ -53,7 +55,9 @@ dset_test = TrajectoryDataset(
         args.test_data,
         obs_len=args.obs_len,
         pred_len=args.pred_len,
-        flip = False
+        flip = False,
+        reshape_pose = True,
+        missing_kpt = args.missing_kpt  
         )
 
 loader_test = DataLoader(
@@ -89,8 +93,8 @@ test_loss = 0 ;  test_ade = 0 ; test_fde = 0
 traj_dict = {'video_names': [], 'image_names': [],  'person_ids': [], 'traj_gt': [], 'traj_pred': [], 'pose': []}
 for test_it, samples in enumerate(loader_test):
     
-    locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-    poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
+    locations = Variable(samples['imputed_locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+    poses = Variable(samples['imputed_poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
     gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
     if(args.use_cuda): 

@@ -108,7 +108,7 @@ Traj-STGCNN
 Specify `args.train_data` and `args.val_data`, then run
 
 ```
-python train.py
+python train.py --save_dir save/traj-stgcnn/full_size/
 ```
 
 ## Test
@@ -139,7 +139,7 @@ python test.py --python test.py --resume path/to/checkpoint
 3. Compare the results with other methods. 
     
 
-4. Ablation sutdy
+4. Ablation study
 
 
 ## Comparisons
@@ -150,12 +150,9 @@ python test.py --python test.py --resume path/to/checkpoint
 
 ## Analysis
 
-
+``
+python utils/analysis.py --traj_file save/trajs.json --test_data train_val_data/JAAD/mini_size/val_data.joblib
 ```
-```
-
-
-    
 
 
 
