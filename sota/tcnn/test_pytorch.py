@@ -34,14 +34,16 @@ parser.add_argument('--test_data', type=str,  default="train_val_data/JAAD/mini_
                     help='file used for testing')
 parser.add_argument('--use_cuda', action='store_true', default= True, 
                     help = 'use gpu')
-parser.add_argument('--save_dir', type=str, default='sota/tcnn/save/tcnn',
+parser.add_argument('--save_dir', type=str, default='sota/tcnn/save_test/',
                      help='save directory')
 parser.add_argument('--resume', type=str, default="",
                      help='resume a trained model?')
 parser.add_argument('--model', type=str, default="tcnn_pose",
                      help='supporting tcnn or tcnn_pose')
-parser.add_argument('--missing_kpt', type=int, default= None,
+parser.add_argument('--occluded_rate', type=float, default= 0,
                      help='which kpt is missing -- for studying')
+parser.add_argument('--occluded_type', type=str, default= "locations",
+                     help='occluded pose or locations')
 
 
 args = parser.parse_args()
@@ -68,7 +70,7 @@ dset_test = TrajectoryDataset(
         pred_len=args.pred_len,
         flip = False,
         reshape_pose = False,
-        missing_kpt = args.missing_kpt  
+        occluded_rate = args.occluded_rate  
         )
 
 loader_test = DataLoader(
@@ -114,8 +116,8 @@ traj_dict = {'video_names': [], 'image_names': [],  'person_ids': [], 'traj_gt':
 model.eval()
 for test_it, samples in enumerate(loader_test):
     
-    locations = Variable(samples['imputed_locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-    poses = Variable(samples['imputed_poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
+    locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+    poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
     gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
     if(args.use_cuda): 

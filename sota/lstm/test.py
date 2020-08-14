@@ -36,7 +36,10 @@ parser.add_argument('--save_dir', type=str, default='sota/lstm/save',
                      help='save directory')
 parser.add_argument('--resume', type=str, default="",
                      help='resume a trained model?')
-
+parser.add_argument('--occluded_rate', type=float, default= 0,
+                     help='which kpt is missing -- for studying')
+parser.add_argument('--occluded_type', type=str, default= "locations",
+                     help='occluded pose or locations')
 
 
 args = parser.parse_args()
@@ -58,7 +61,9 @@ dset_test = TrajectoryDataset(
         args.test_data,
         obs_len=args.obs_len,
         pred_len=args.pred_len,
-        flip = False
+        flip = False,
+        occluded_rate = args.occluded_rate,
+        occluded_type = args.occluded_type  
         )
 
 loader_test = DataLoader(
@@ -97,8 +102,8 @@ traj_dict = {'video_names': [], 'image_names': [],  'person_ids': [], 'traj_gt':
 for test_it, samples in enumerate(loader_test):
     
         
-    locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-    poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
+    locations = Variable(samples['imputed_locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+    poses = Variable(samples['imputed_poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
     gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
     if(args.use_cuda): 

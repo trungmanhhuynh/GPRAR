@@ -21,7 +21,7 @@ PROCESSED_POSE_ID_DIR = "/home/manhh/github/Traj-STGCNN/processed_data/JAAD/pose
 TRAIN_VAL_DIR = "/home/manhh/github/Traj-STGCNN/train_val_data/JAAD"
 DATA_SIZE = "mini_size"			# use `full_size` or `mini_size`
 NUM_KEYPOINTS = 75 
-FULL_POSE = True 				# only extract poses that all keypoints are present
+FULL_POSE = False 				# only extract poses that all keypoints are present
 
 random.seed(1)
 
@@ -44,7 +44,7 @@ def impute_poses(poses):
 
 
 	imputer = KNNImputer(missing_values=0, n_neighbors=5, weights="uniform")
-	imputed_poses = imputer.fit_transform(poses)
+	imputed_poses = imputer.fit_transform(poses_array)
 
 	imputed_poses_array = np.array(imputed_poses)
 

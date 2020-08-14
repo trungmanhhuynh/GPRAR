@@ -130,8 +130,8 @@ for e in range(resume_epoch, args.nepochs):
     for train_it, samples in enumerate(loader_train):
         
         
-        locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-        poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
+        locations = Variable(samples['imputed_locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+        poses = Variable(samples['imputed_poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
         gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
         if(args.use_cuda): 
@@ -164,8 +164,8 @@ for e in range(resume_epoch, args.nepochs):
     val_loss = 0 ;  val_ade = 0 ; val_fde = 0 
     for val_it, samples in enumerate(loader_val):
         
-        locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-        poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
+        locations = Variable(samples['imputed_locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+        poses = Variable(samples['imputed_poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
         gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
         if(args.use_cuda): 

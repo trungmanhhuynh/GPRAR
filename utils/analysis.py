@@ -22,8 +22,7 @@ def calculate_ade_fde(traj_gt, traj_pred ):
 
     return ade, fde
 
-
-
+  
 def calc_percent_occlusion(pose, keypoints = 25, feature = 3):
 
     # pose shape (obs_len, keypoints*3)
@@ -32,13 +31,17 @@ def calc_percent_occlusion(pose, keypoints = 25, feature = 3):
     pose = pose.reshape((obs_len, keypoints, feature))
     n_missing_pts = 0 
 
+    missing_kpt_counts = [0]*keypoints 
     for t in range(obs_len):
         for k in range(keypoints):
             if(pose[t][k][0] == 0 and pose[t][k][1] == 0):
                 n_missing_pts += 1
+                missing_kpt_counts[k] += 1
 
 
-    return n_missing_pts/(keypoints*obs_len)
+
+
+    return missing_kpt_counts, n_missing_pts/(keypoints*obs_len)
 
 if __name__ == '__main__':
 
@@ -49,7 +52,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--traj_file', type=str, default="",
                      help='load predicted trajectory from json file')
-    parser.add_argument('--test_data', type=str, default="",
+    parser.add_argument('--test_data', type=str, default="train_val_data/JAAD/mini_size/val_data.joblib",
                      help='load test data consisting of ground truth trajectory')
 
     args = parser.parse_args()
@@ -80,11 +83,14 @@ if __name__ == '__main__':
 
     #convert to numpy 
     poses = np.asarray(poses)
+    observed_pose = poses[:,:args.obs_len,:]
     locations = np.asarray(locations)
     gt_locations = locations[:,-args.pred_len:, :]
     pred_traj = np.asarray(pred_traj)
-
     num_samples = len(pred_traj)
+
+
+    # init variables
     ade_r0, fde_r0, num_r0 = 0, 0, 0            # r0: 0-> 0.1 %
     ade_r1, fde_r1, num_r1 = 0, 0, 0            # r10: 0.1-> 0.2 %
     ade_r2, fde_r2, num_r2 = 0, 0, 0            # r10: 0.2-> 0.3 %
@@ -92,11 +98,21 @@ if __name__ == '__main__':
     ade_r4, fde_r4, num_r4 = 0, 0, 0            # r10: 0.4->  %
     test_ade, test_fde =0 ,0 
 
+    ade_ms_kpts = [0]*25
+    fde_ms_kpts = [0]*25
+    ms_kpts = [0]*25
+
+    r3_missing_kpts = [0]*25
+    r4_missing_kpts = [0]*25
+
     occlusions  = {'occlusion_percent': [], 'ade':[], 'fde': []}
+
+
+
     for i in range(num_samples):
 
         ade, fde = calculate_ade_fde(gt_locations[i], pred_traj[i])
-        occlusion_percent = calc_percent_occlusion(poses[i], keypoints = 25, feature = 3);
+        missing_kpt_counts, occlusion_percent = calc_percent_occlusion(observed_pose[i], keypoints = 25, feature = 3);
             
 
         occlusions['occlusion_percent'].append(occlusion_percent)
@@ -104,7 +120,8 @@ if __name__ == '__main__':
         occlusions['fde'].append(fde)
 
 
-        if(occlusion_percent >=0 and occlusion_percent <0.1):
+        # ade/fde by occlusion percentage
+        if(occlusion_percent >= 0 and occlusion_percent < 0.1):
             ade_r0 += ade; fde_r0 += fde; num_r0 += 1
         if(occlusion_percent >= 0.1 and occlusion_percent <0.2 ):
             ade_r1 += ade; fde_r1 += fde; num_r1 += 1
@@ -112,29 +129,41 @@ if __name__ == '__main__':
             ade_r2 += ade; fde_r2 += fde; num_r2 += 1
         elif(occlusion_percent>= 0.3 and occlusion_percent < 0.4):
             ade_r3 += ade; fde_r3 += fde; num_r3 += 1
+            for k, num_ms in enumerate(missing_kpt_counts):
+                if(missing_kpt_counts[k] > 0):
+                    r3_missing_kpts[k] += 1
+
         elif(occlusion_percent >= 0.4 and occlusion_percent < 0.5 ):
             ade_r4 += ade; fde_r4 += fde; num_r4 += 1
+            for k, num_ms in enumerate(missing_kpt_counts):
+                if(missing_kpt_counts[k] > 0):
+                    r4_missing_kpts[k] += 1
 
         test_ade += ade; test_fde += fde; 
 
 
+        # ade/fde by missing human keypoints: 
+        for k, num_ms in enumerate(missing_kpt_counts):
+            if(missing_kpt_counts[k] > 0):
+                ade_ms_kpts[k] += ade ;
+                fde_ms_kpts[k] += fde ;
+                ms_kpts[k] += 1 
 
-    #print(occlusions)
 
+
+    # plot ade by occlusion percentage
     occlusions['occlusion_percent'] = np.asarray(occlusions['occlusion_percent'])
     occlusions['ade'] = np.asarray(occlusions['ade'])
     occlusions['fde'] = np.asarray(occlusions['fde'])
-
     sort_index = np.argsort(occlusions['occlusion_percent']) 
-
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
     ax.plot(occlusions['occlusion_percent'][sort_index], occlusions['ade'][sort_index], color = 'b',  linewidth=2.0, label='ade')
     plt.xlabel('occlusion (%)')
     plt.ylabel('ade (pixels)')
-
     fig.savefig("occlusion.png")
     plt.close()
+
 
 
     print("num_r0= {}, ade_r0={}, fde_r0={}".format(num_r0, ade_r0/num_r0, fde_r0/num_r0))
@@ -143,3 +172,46 @@ if __name__ == '__main__':
     print("num_r3= {}, ade_r3={}, fde_r3={}".format(num_r3, ade_r3/num_r3, fde_r3/num_r3))
     print("num_r4= {}, ade_r4={}, fde_r4={}".format(num_r4, ade_r4/num_r4, fde_r4/num_r4))
     print("ade = {}, fde ={}".format(test_ade/num_samples, test_fde/num_samples))
+
+
+    for k, num in enumerate(ms_kpts):
+        if(ms_kpts[k] >= 0):
+            ade_ms_kpts[k] /= ms_kpts[k] 
+
+
+    # plot ade by missing keypoints    
+    print("ade_ms_kpts", ade_ms_kpts)
+    x = np.arange(len(ade_ms_kpts))
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    ax.bar(x, ade_ms_kpts, width = 0.5, label='ade')
+    ax.set_ylabel('ADE')
+    ax.set_xlabel('ith keypoint')
+
+    ax.set_title('Impacts of missing a keypoint')
+    ax.set_xticks(x)
+    #ax.set_xticklabels(labels)
+    ax.legend()
+    fig.savefig("keypoint_impact_ade.png")
+    plt.close()
+
+
+    # plot samples that missing a keypoints in r3 and r4   
+
+    print("r3_missing_kpts", r3_missing_kpts)
+    print("r4_missing_kpts", r4_missing_kpts)
+
+    x = np.arange(len(r3_missing_kpts))
+    width = 0.35
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    ax.bar(x - width/2, [i/num_r3*100 for i in r3_missing_kpts], width , label='30-40% occ.')
+    ax.bar(x + width/2, [i/num_r4*100 for i in r4_missing_kpts], width , label='>40% occ.')
+
+    ax.set_ylabel('# samples')
+    ax.set_xlabel('ith keypoint')
+
+    #ax.set_title('Impacts of missing a keypoint')
+    ax.set_xticks(x)
+    #ax.set_xticklabels(labels)
+    ax.legend()
+    fig.savefig("r3vsr4.png")
+    plt.close()

@@ -25,7 +25,7 @@ class Graph():
 
     def __init__(self,
                  layout='openpose_25',
-                 strategy='spatial',
+                 strategy='uniform',
                  max_hop=1,
                  dilation=1):
         self.max_hop = max_hop
@@ -75,8 +75,6 @@ class Graph():
         if strategy == 'uniform':
             A = np.zeros((1, self.num_node, self.num_node))
             A[0] = normalize_adjacency
-            print(A)
-            input("asd")
             self.A = A
         elif strategy == 'distance':
             A = np.zeros((len(valid_hop), self.num_node, self.num_node))

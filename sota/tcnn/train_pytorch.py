@@ -47,7 +47,7 @@ parser.add_argument('--save_fre', type=int, default= 5,
                     help='save model every x epochs')
 parser.add_argument('--use_cuda', action='store_true', default= True, 
                     help = 'use gpu')
-parser.add_argument('--save_dir', type=str, default='sota/tcnn/save/tcnn',
+parser.add_argument('--save_dir', type=str, default='',
                      help='save directory')
 parser.add_argument('--resume', type=str, default="",
                      help='resume a trained model?')
@@ -57,6 +57,7 @@ parser.add_argument('--missing_part', type=str, default= None,
                      help='which part is missing -- for studying')
 
 args = parser.parse_args()
+
 
 args.save_model_dir = os.path.join(args.save_dir, "model")
 args.save_log_dir = os.path.join(args.save_dir, "log")
@@ -111,12 +112,8 @@ if(args.model == 'tcnn_pose'):
     model = TCNN_POSE(pred_len = args.pred_len)
 if(args.model == 'tcnn'):
     model = TCNN(pred_len = args.pred_len)
-
-
-
 if(args.use_cuda) : model = model.cuda() 
-#print(model)
-#model.apply(weights_init)
+
 
 
 # 3. define loss function 
@@ -147,8 +144,8 @@ for e in range(resume_epoch, args.nepochs):
 
     for train_it, samples in enumerate(loader_train):
         
-        locations = Variable(samples['gt_obs_locations'])              # location ~ (batch_size, traj_len, 2)   
-        poses = Variable(samples['imputed_poses'])                      # pose ~ (batch_size, traj_len, 75)
+        locations = Variable(samples['locations'])              # location ~ (batch_size, traj_len, 2)   
+        poses = Variable(samples['poses'])                      # pose ~ (batch_size, traj_len, 75)
         gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ (batch_size, traj_len, 2) 
 
 
@@ -188,8 +185,8 @@ for e in range(resume_epoch, args.nepochs):
     for val_it, samples in enumerate(loader_val):
         
         # get input data
-        locations = Variable(samples['gt_obs_locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
-        poses = Variable(samples['imputed_poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
+        locations = Variable(samples['locations'])              # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]   
+        poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
         gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
 
         if(args.use_cuda): 

@@ -122,6 +122,12 @@ python test.py --python test.py --resume path/to/checkpoint
 
 
 
+## Pose reconstruction 
+```
+ python train.py --reconstruct_pose --occl_ratio 0.2 --train_data train_val_data/JAAD/full_size/train_pose_reconstruction.joblib --val_data train_val_data/JAAD/full_size/val_pose_reconstruction.joblib --save_dir save/model4/reconstruct --nepochs 100
+```
+
+
 ## Plan 
 1. Pre-processes the datasets (done)
     + Extract sample from the dataset. Each sample includes these features
