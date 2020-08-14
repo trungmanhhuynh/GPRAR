@@ -16,7 +16,7 @@ from torch.autograd import Variable
 from torch.optim.lr_scheduler import StepLR
 
 from net.reconstructor import Reconstructor
-from dataset_reconstructor import TrajectoryDataset
+from reconstructor.dataset import TrajectoryDataset
 # from utils.utils import calculate_ade_fde
 
 
@@ -26,9 +26,9 @@ parser.add_argument('--obs_len', type=int, default=10)
 parser.add_argument('--pred_len', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=128,
                     help='minibatch size')
-parser.add_argument('--train_data', type=str, default="train_val_data/JAAD/full_size/train_pose_reconstruction.joblib",
+parser.add_argument('--train_data', type=str, default="reconstructor/train_val_data/JAAD/mini_size/train_pose_reconstruction.joblib",
                     help='file used for training')
-parser.add_argument('--val_data', type=str, default="train_val_data/JAAD/full_size/val_pose_reconstruction.joblib",
+parser.add_argument('--val_data', type=str, default="reconstructor/train_val_data/JAAD/mini_size/val_pose_reconstruction.joblib",
                     help='file used for validation')
 parser.add_argument('--learning_rate', type=float, default=0.001,
                     help='learning rate')
@@ -44,7 +44,7 @@ parser.add_argument('--save_fre', type=int, default=5,
                     help='save model every x epochs')
 parser.add_argument('--use_cuda', action='store_true', default=True,
                     help='use gpu')
-parser.add_argument('--save_dir', type=str, default='./save',
+parser.add_argument('--save_dir', type=str, default='reconstructor/save/mini_size/',
                     help='save directory')
 parser.add_argument('--resume', type=str, default="",
                     help='resume a trained model?')

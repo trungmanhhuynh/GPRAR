@@ -122,10 +122,13 @@ python test.py --python test.py --resume path/to/checkpoint
 
 
 
-## Pose reconstruction 
+## Pose Reconstructor 
+#### 1. Generate train/val data for reconstructor
 ```
- python train.py --reconstruct_pose --occl_ratio 0.2 --train_data train_val_data/JAAD/full_size/train_pose_reconstruction.joblib --val_data train_val_data/JAAD/full_size/val_pose_reconstruction.joblib --save_dir save/model4/reconstruct --nepochs 100
+python reconstructor/generate_train_val_data.py --data_size small
 ```
+For modifying other parameters, please look into the script
+
 
 
 ## Plan 
