@@ -2,7 +2,7 @@ import joblib
 import torch
 import random
 from torch.utils.data import Dataset
-from utils.utils import calc_mean_variance, std_normalize
+from reconstructor.utils import calc_mean_variance, std_normalize
 
 
 class TrajectoryDataset(Dataset):
@@ -12,7 +12,6 @@ class TrajectoryDataset(Dataset):
                  obs_len=10,
                  pred_len=10,
                  flip=False,
-                 occl=False,
                  image_width=1280):
         """
         Args:
@@ -39,12 +38,15 @@ class TrajectoryDataset(Dataset):
         self.pose_features = 3              # x, y, c
         self.keypoints = 25                 # using openpose 25 keypoints
         self.image_width = image_width
-        self.occl = occl
 
         # read train/val from joblib file
         self.read_data(data_file)
         print(self.imputed_poses.shape)
 
+        # print(self.imputed_poses[0, 0, :])
+        # self.imputed_poses = self.generate_occluded_pose(self.imputed_poses)
+        # print(self.imputed_poses[0, 0, :])
+        # input("here")
         # normalize data
         self.normalize_data()
 
@@ -58,17 +60,20 @@ class TrajectoryDataset(Dataset):
 
         data = joblib.load(data_file)
 
-        imputed_poses, video_names, image_names, person_ids = [], [], [], []
+        imputed_poses, bboxes, video_names, image_names, person_ids = [], [], [], [], []
         for sample in data:
             imputed_poses.append(sample['imputed_poses'])
+            bboxes.append(sample['bboxes'])
             video_names.append(sample['video_names'][0])
             image_names.append(sample['image_names'][self.obs_len - 1])
             person_ids.append(sample['person_ids'][0])
 
         # convert to tensor
         imputed_poses = torch.tensor(imputed_poses, dtype=torch.float)                         # ~ (num_samples, traj_len, keypoints*pose_features)
+        bboxes = torch.tensor(bboxes, dtype=torch.float)                                        # ~ (num_samples, traj_len, 4)
 
         self.imputed_poses = imputed_poses
+        self.bboxes = bboxes
         self.video_names = video_names
         self.image_names = image_names
         self.person_ids = person_ids
@@ -77,17 +82,19 @@ class TrajectoryDataset(Dataset):
 
         # set a random number of keypoints to zero
 
-        occluded_rate = random.uniform(0, 0.5)
+        # occluded_rate = random.uniform(0, 0.5)
+        occluded_rate = 0.1
         occluded_kpt = random.choices(range(0, self.obs_len * self.keypoints), k=int(self.obs_len * self.keypoints * occluded_rate))
 
         occ_t, occ_k = [], []
         for k in occluded_kpt:
-            occ_t.append(int(k / self.keypoints))
-            occ_k.append(k % self.keypoints)
+            occ_t.append(int(k / (self.obs_len * self.keypoints)))
+            occ_k.append(k % (self.obs_len * self.keypoints))
 
         for t in occ_t:
             for k in occ_k:
                 pose[t, k * 3: k * 3 + 3] = 0
+                # pose[:, t, k * 3: k * 3 + 3] = 0
 
         return pose
 
@@ -105,13 +112,11 @@ class TrajectoryDataset(Dataset):
         """
         sample = {
             'poses': self.imputed_poses[index, :self.obs_len, :],
-            'poses_gt': self.imputed_poses[index, -self.pred_len:, :],
+            'poses_gt': self.imputed_poses[index, :self.obs_len, :],
+            'bboxes': self.bboxes[index, :self.obs_len, :],
             'video_names': self.video_names[index],
             'image_names': self.image_names[index],
             'person_ids': self.person_ids[index]
         }
-
-        if (self.occl):
-            sample['poses'] = self.generate_occluded_pose(sample['poses'])
 
         return sample

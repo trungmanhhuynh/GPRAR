@@ -17,7 +17,7 @@ from torch.optim.lr_scheduler import StepLR
 
 from net.reconstructor import Reconstructor
 from reconstructor.dataset import TrajectoryDataset
-# from utils.utils import calculate_ade_fde
+from reconstructor.utils import std_denormalize, calculate_ade, plot_results
 
 
 # read arguments
@@ -26,9 +26,9 @@ parser.add_argument('--obs_len', type=int, default=10)
 parser.add_argument('--pred_len', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=128,
                     help='minibatch size')
-parser.add_argument('--train_data', type=str, default="reconstructor/train_val_data/JAAD/mini_size/train_pose_reconstruction.joblib",
+parser.add_argument('--train_data', type=str, default="reconstructor/train_val_data/JAAD/small_train_data.joblib",
                     help='file used for training')
-parser.add_argument('--val_data', type=str, default="reconstructor/train_val_data/JAAD/mini_size/val_pose_reconstruction.joblib",
+parser.add_argument('--val_data', type=str, default="reconstructor/train_val_data/JAAD/small_val_data.joblib",
                     help='file used for validation')
 parser.add_argument('--learning_rate', type=float, default=0.001,
                     help='learning rate')
@@ -44,19 +44,27 @@ parser.add_argument('--save_fre', type=int, default=5,
                     help='save model every x epochs')
 parser.add_argument('--use_cuda', action='store_true', default=True,
                     help='use gpu')
-parser.add_argument('--save_dir', type=str, default='reconstructor/save/mini_size/',
+parser.add_argument('--save_dir', type=str, default='reconstructor/save/small/',
                     help='save directory')
 parser.add_argument('--resume', type=str, default="",
                     help='resume a trained model?')
+parser.add_argument('--plot_sample', action='store_true', default=False,
+                    help='plot val results?')
+parser.add_argument('--image_dir', type=str, default="/home/manhh/github/datasets/JAAD/images",
+                    help='must be specified if plot_sample is true')
 
 args = parser.parse_args()
 
 args.save_model_dir = os.path.join(args.save_dir, "model")
 args.save_log_dir = os.path.join(args.save_dir, "log")
+args.result_dir = os.path.join(args.save_dir, "result")
+
 if not os.path.exists(args.save_model_dir):
     os.makedirs(args.save_model_dir)
 if not os.path.exists(args.save_log_dir):
     os.makedirs(args.save_log_dir)
+if not os.path.exists(args.result_dir):
+    os.makedirs(args.result_dir)
 print(args)
 
 
@@ -111,7 +119,7 @@ mse_loss = torch.nn.MSELoss()
 
 # train settings
 optimizer = getattr(optim, args.optim)(model.parameters(), lr=args.learning_rate)
-scheduler = StepLR(optimizer, step_size=20, gamma=0.5)
+scheduler = StepLR(optimizer, step_size=10, gamma=0.5)
 
 
 # load check points ?
@@ -140,9 +148,9 @@ for e in range(resume_epoch, args.nepochs):
 
         # forward
         optimizer.zero_grad()
-        output = model(poses)                                      # output ~ [batch_size, pred_len, 2] or pose ~ (batch_size, pred_len, 75)
+        pred_poses = model(poses)                                      # pred_poses ~ [batch_size, pred_len, 2] or pose ~ (batch_size, pred_len, 75)
 
-        loss = mse_loss(output, gt_poses)
+        loss = mse_loss(pred_poses, gt_poses)
         train_loss += loss.item()
 
         # backward
@@ -155,41 +163,52 @@ for e in range(resume_epoch, args.nepochs):
             print("iter:{}/{} train_loss:{:.5f} ".format(e * len(loader_train) + train_it,
                                                          args.nepochs * len(loader_train),
                                                          train_loss / (train_it + 1)))
-
     train_loss /= len(loader_train)
 
     # validate
     print("---validate---")
-    model.eval()
-    val_loss = 0
-    val_ade = 0
-    val_fde = 0
+    val_loss, val_ade = 0, 0
+    # model.eval()
     for val_it, samples in enumerate(loader_val):
 
-        poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
-        gt_poses = Variable(samples['poses_gt'])                  # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
+        poses = Variable(samples['poses'])                        # pose ~ [batch_size, obs_len, num_keypoints*num_feats]
+        gt_poses = Variable(samples['poses_gt'])
 
         if(args.use_cuda):
             poses, gt_poses = poses.cuda(), gt_poses.cuda(),
 
         # forward
-        output = model(poses)                                      # output ~ [batch_size, pred_len, 2]
-        loss = mse_loss(output, gt_poses)
+        pred_poses = model(poses)                                      # pred_poses ~ [batch_size, pred_len, 2]
+        loss = mse_loss(pred_poses, gt_poses)
         val_loss += loss.item()
 
-        # calculate ade/fde
-        # ade, fde = calculate_ade_fde(gt_locations, output, dset_val.loc_mean, dset_val.loc_var)
-        # val_ade += ade
-        # val_fde += fde
+        # de-normalize
+        gt_poses = std_denormalize(gt_poses, dset_val.pose_mean, dset_val.pose_var)
+        pred_poses = std_denormalize(pred_poses, dset_val.pose_mean, dset_val.pose_var)
+
+        # calculate mse error in pixels
+        ade = calculate_ade(gt_poses, pred_poses)
+        val_ade += ade
+
+        # plot samples
+        if(args.plot_sample and val_it == 0):
+            # plot results at iteration val_it
+            plot_results(gt_poses=gt_poses,
+                         pred_poses=pred_poses,
+                         bboxes=samples['bboxes'],
+                         epoch=e,
+                         video_name=samples['video_names'],
+                         image_name=samples['image_names'],
+                         image_dir=args.image_dir,
+                         result_dir=args.result_dir)
 
     val_loss /= len(loader_val)
     val_ade /= len(loader_val)
-    val_fde /= len(loader_val)
     stop_time = time.time()
     scheduler.step()    # update learning rate
 
-    print("epoch:{} lr:{} train_loss:{:.5f} val_loss:{:.5f} val_ade:{:.2f} val_fde:{:.2f} time(ms):{:.2f}".format(
-        e, scheduler.get_lr(), train_loss, val_loss, val_ade, val_fde, (stop_time - start_time) * 1000))
+    print("epoch:{} lr:{} train_loss:{:.5f} val_loss:{:.5f} val_ade:{:.2f} time(ms):{:.2f}".format(
+        e, scheduler.get_lr(), train_loss, val_loss, val_ade, (stop_time - start_time) * 1000))
 
     # 7. save model
     if((e + 1) % args.save_fre == 0):

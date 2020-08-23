@@ -165,7 +165,7 @@ def generate_train_val_data(processed_location_dir,
     video_dir = os.path.join(proccesed_pose_dir)
 
     if(data_size == "small"):
-        video_files = random.sample(os.listdir(video_dir), k=int(0.25 * len(os.listdir(video_dir))))
+        video_files = random.sample(os.listdir(video_dir), k=int(0.1 * len(os.listdir(video_dir))))
     elif(data_size == "medium"):
         video_files = random.sample(os.listdir(video_dir), k=int(0.50 * len(os.listdir(video_dir))))
     elif(data_size == "large"):

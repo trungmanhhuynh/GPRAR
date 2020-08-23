@@ -127,9 +127,14 @@ python test.py --python test.py --resume path/to/checkpoint
 ```
 python reconstructor/generate_train_val_data.py --data_size small
 ```
+
+#### 2. Train pose reconstuctor 
+```
+python reconstructor/train.py --save_dir reconstructor/save/small
+```
+
+
 For modifying other parameters, please look into the script
-
-
 
 ## Plan 
 1. Pre-processes the datasets (done)

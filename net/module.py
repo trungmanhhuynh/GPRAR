@@ -11,17 +11,17 @@ from net.graph import Graph
 
 
 class conv2d(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride,  padding, use_bn = True):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, use_bn=True):
         super().__init__()
 
         if(use_bn):
             self.cnn = nn.Sequential(
                 nn.Conv2d(
-                    in_channels = in_channels,
-                    out_channels = out_channels,                       
-                    kernel_size = (kernel_size, 1),                # e.g. (9,  1)
-                    stride = (stride, 1),                         # e.g. (1, 1)
-                    padding = (padding, 0),                            # e.g. (4, 0)
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=(kernel_size, 1),                # e.g. (9,  1)
+                    stride=(stride, 1),                         # e.g. (1, 1)
+                    padding=(padding, 0),                            # e.g. (4, 0)
                 ),
                 nn.BatchNorm2d(out_channels),
                 nn.ReLU(),
@@ -29,34 +29,32 @@ class conv2d(nn.Module):
         else:
             self.cnn = nn.Sequential(
                 nn.Conv2d(
-                    in_channels = in_channels,
-                    out_channels = out_channels,                       
-                    kernel_size = (kernel_size, 1),                # e.g. (9,  1)
-                    stride = (stride, 1),                         # e.g. (1, 1)
-                    padding = (padding, 0),                            # e.g. (4, 0)
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=(kernel_size, 1),                # e.g. (9,  1)
+                    stride=(stride, 1),                         # e.g. (1, 1)
+                    padding=(padding, 0),                            # e.g. (4, 0)
                 ),
             )
-
-
 
     def __call__(self, pose_in):
         # pose_in shape must be (batch_size, in_channels, height, width)
         # or (batch_size, in_channels, obs_len, 1)  for 1D convolution over observed traj
 
         return self.cnn(pose_in)
-        
-class deconv2d(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride,  padding, dropout = 0.2):
-        super().__init__()
 
+
+class deconv2d(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, dropout=0.2):
+        super().__init__()
 
         self.cnn = nn.Sequential(
             nn.ConvTranspose2d(
-                in_channels = in_channels,
-                out_channels = out_channels,                       
-                kernel_size = (kernel_size, 1),                # e.g. (9,  1)
-                stride = (stride, 1),                         # e.g. (1, 1)
-                padding = (padding, 0),                            # e.g. (4, 0)
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=(kernel_size, 1),                # e.g. (9,  1)
+                stride=(stride, 1),                         # e.g. (1, 1)
+                padding=(padding, 0),                            # e.g. (4, 0)
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
@@ -67,9 +65,9 @@ class deconv2d(nn.Module):
         # or (batch_size, in_channels, obs_len, 1)  for 1D convolution over observed traj
 
         return self.cnn(pose_in)
-        
 
-class ConvTemporalGraphical(nn.Module):
+
+class sgcn(nn.Module):
 
     # source: https://github.com/yysijie/st-gcn/blob/master/net/utils/tgcn.py
     r"""The basic module for applying a graph convolution.
@@ -108,28 +106,34 @@ class ConvTemporalGraphical(nn.Module):
                  t_stride=1,
                  t_padding=0,
                  t_dilation=1,
-                 bias=True):
+                 bias=True,
+                 dropout=0):
         super().__init__()
 
         self.kernel_size = kernel_size  # spatial kernel size
-        self.conv = nn.Conv2d(
-            in_channels,                           
-            out_channels * kernel_size,             # e.g.  64*3, where 3 is number of adjacent matripose_in
-            kernel_size=(t_kernel_size, 1),         # (1, 1) by default
-            padding=(t_padding, 0),                 # (0, 0) by default
-            stride=(t_stride, 1),                   # (1, 1) by default
-            dilation=(t_dilation, 1),               # (1, 1) by default
-            bias=bias)
+        self.sgcn = nn.Sequential(
+            nn.Conv2d(
+                in_channels,
+                out_channels * kernel_size,             # e.g.  64*3, where 3 is number of adjacent matripose_in
+                kernel_size=(t_kernel_size, 1),         # (1, 1) by default
+                padding=(t_padding, 0),                 # (0, 0) by default
+                stride=(t_stride, 1),                   # (1, 1) by default
+                dilation=(t_dilation, 1),               # (1, 1) by default
+                bias=bias),
+            nn.BatchNorm2d(out_channels * kernel_size),
+            # nn.ReLU(inplace=True),
+            nn.Dropout(dropout, inplace=True),
+        )
 
     def forward(self, pose_in, A):
+
         assert A.size(0) == self.kernel_size   # A.shape = (3,25,25)
+        pose_in = self.sgcn(pose_in)    # pose_in input ~ (batch_size, in_channels, height, width)
+        # pose_in output ~ (batch_size, out_channels, height, width)
+        # e.g. (128,3,10, 25) -> (128,192,10,25)
 
-        pose_in = self.conv(pose_in)    # pose_in input ~ (batch_size, in_channels, height, width)
-                            # pose_in output ~ (batch_size, out_channels, height, width)
-                            # e.g. (128,3,10, 25) -> (128,192,10,25) 
-
-        n, kc, t, v = pose_in.size()                                          # e.g. n = 128, kc = 192, t = 10, v = 25 
-        pose_in = pose_in.view(n, self.kernel_size, kc//self.kernel_size, t, v)     # e.g. pose_in.shape ~ (128, 3, 64, 10, 25)
+        n, kc, t, v = pose_in.size()                                          # e.g. n = 128, kc = 192, t = 10, v = 25
+        pose_in = pose_in.view(n, self.kernel_size, kc // self.kernel_size, t, v)     # e.g. pose_in.shape ~ (128, 3, 64, 10, 25)
 
         pose_in = torch.einsum('nkctv,kvw->nctw', (pose_in, A))                     # e.g. (128, 3, 64, 10, 25)*(3, 25, 25) -> (128, 64, 10, 25)
 
@@ -175,29 +179,31 @@ class st_gcn(nn.Module):
         assert kernel_size[0] % 2 == 1
         padding = ((kernel_size[0] - 1) // 2, 0)
 
-        self.gcn = ConvTemporalGraphical(in_channels, out_channels,
-                                         kernel_size[1])
+        # spatial graph cnn
+        self.sgcn = sgcn(in_channels=in_channels,
+                         out_channels=out_channels,
+                         kernel_size=kernel_size[1],
+                         dropout=dropout)
 
-        self.tcn = nn.Sequential(
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
+        # temporal graph cnn
+        self.tgcn = nn.Sequential(
             nn.Conv2d(
                 out_channels,
-                out_channels,                       
+                out_channels,
                 (kernel_size[0], 1),                # e.g. (9,  1)
                 (stride, 1),                        # e.g. (1, 1)
                 padding,                            # e.g. (4, 0)
             ),
             nn.BatchNorm2d(out_channels),
-            nn.Dropout(dropout, inplace=True),
+            # nn.ReLU(inplace=True),
+            nn.Dropout(dropout, inplace=True)
         )
 
+        # residual connection
         if not residual:
             self.residual = lambda pose_in: 0
-
         elif (in_channels == out_channels) and (stride == 1):
             self.residual = lambda pose_in: pose_in
-
         else:
             self.residual = nn.Sequential(
                 nn.Conv2d(
@@ -206,16 +212,16 @@ class st_gcn(nn.Module):
                     kernel_size=1,
                     stride=(stride, 1)),
                 nn.BatchNorm2d(out_channels),
+                # nn.ReLU(inplace=True)
             )
 
-        self.relu = nn.ReLU(inplace=True)
+        # self.relu = nn.ReLU(inplace=True)
 
     def forward(self, pose_in, A):
 
         res = self.residual(pose_in)          # pose_in.shape (128, 3, 10, 25)
-        pose_in, A = self.gcn(pose_in, A)           # e.g. A.shape (3,25,25)
-                                        # e.g. pose_in.shape (128, 64, 10, 25) ~ (batch_size, out_channels, obs_len, nodes)
-        pose_in = self.tcn(pose_in) + res           # (128, 64, 10, 25) --> (128, 64, 10, 25)
+        pose_in, A = self.sgcn(pose_in, A)           # e.g. A.shape (3,25,25)
+        # e.g. pose_in.shape (128, 64, 10, 25) ~ (batch_size, out_channels, obs_len, nodes)
+        pose_in = self.tgcn(pose_in) + res           # (128, 64, 10, 25) --> (128, 64, 10, 25)
 
-
-        return self.relu(pose_in), A
+        return pose_in, A
