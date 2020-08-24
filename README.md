@@ -105,11 +105,25 @@ Traj-STGCNN
 
 ## Train 
 
-Specify `args.train_data` and `args.val_data`, then run
+1. Train Reconstructor 
 
 ```
-python train.py --save_dir save/traj-stgcnn/full_size/
+python train.py --mode reconstructor 
 ```
+By default, trained models are save at `save/reconstructor`
+
+2. Train Predictor 
+
+The Reconstructor's weights are freezed during this training phase. 
+```
+python train.py --mode predictor --resume save/reconstructor/model/model_epoch_50.py
+```
+By default, trained models are save at `save/predictor`
+
+
+
+
+
 
 ## Test
 

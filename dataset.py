@@ -57,6 +57,7 @@ class TrajectoryDataset(Dataset):
         video_names, image_names, person_ids = [], [], []
         for sample in data:
             poses.append(sample['poses'])
+            imputed_poses.append(sample['imputed_poses'])
             gt_locations.append(sample['locations'])
             bboxes.append(sample['bboxes'])
             video_names.append(sample['video_names'][0])
@@ -70,6 +71,7 @@ class TrajectoryDataset(Dataset):
         bboxes = torch.tensor(bboxes, dtype=torch.float)                                        # ~ (num_samples, traj_len, 4)
 
         self.poses = poses
+        self.imputed_poses = imputed_poses
         self.gt_locations = gt_locations
         self.video_names = video_names
         self.image_names = image_names
@@ -110,6 +112,7 @@ class TrajectoryDataset(Dataset):
         # normalize data
         self.gt_locations = std_normalize(self.gt_locations, self.loc_mean, self.loc_var)
         self.poses = std_normalize(self.poses, self.pose_mean, self.pose_var)
+        self.imputed_poses = std_normalize(self.imputed_poses, self.pose_mean, self.pose_var)
 
     def __getitem__(self, index):
         """
@@ -117,7 +120,8 @@ class TrajectoryDataset(Dataset):
         """
         sample = {
             'poses': self.poses[index, :self.obs_len, :],
-            'poses_gt': self.poses[index, -self.pred_len:, :],
+            'imputed_poses': self.imputed_poses[index, :self.obs_len, :],
+            'imputed_poses_gt': self.imputed_poses[index, :self.obs_len, :],
             'gt_locations': self.gt_locations[index, -self.pred_len:, :],
             'video_names': self.video_names[index],
             'image_names': self.image_names[index],

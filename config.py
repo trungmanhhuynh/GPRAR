@@ -28,8 +28,8 @@ def read_args():
                         help='data_size: small, medium, large')
     parser.add_argument('--resume', type=str, default="",
                         help='resume a trained model?')
-    parser.add_argument('--reconstruct_pose', action='store_true', default=False,
-                        help='run mode pose reconstruction')
+    parser.add_argument('--mode', type=str, default="reconstructor",
+                        help='run mode to train reconstructor or predictor')
     parser.add_argument('--occl_ratio', type=float, default=0,
                         help='occlusion ratio for reconstruction mode')
 
@@ -44,8 +44,8 @@ def read_args():
     args = parser.parse_args()
 
     # other argurments
-    args.save_model_dir = os.path.join(args.save_dir, "model")
-    args.save_log_dir = os.path.join(args.save_dir, "log")
+    args.save_model_dir = os.path.join(args.save_dir, args.mode, "model")
+    args.save_log_dir = os.path.join(args.save_dir, args.mode, "log")
     args.train_data = os.path.join(args.data_dir, args.data_size, "train_data.joblib")
     args.val_data = os.path.join(args.data_dir, args.data_size, "val_data.joblib")
 

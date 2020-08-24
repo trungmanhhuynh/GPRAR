@@ -1,8 +1,6 @@
 """
 Module
-
 """
-
 
 import torch
 import torch.nn as nn
@@ -24,7 +22,7 @@ class conv2d(nn.Module):
                     padding=(padding, 0),                            # e.g. (4, 0)
                 ),
                 nn.BatchNorm2d(out_channels),
-                nn.ReLU(),
+                nn.ReLU()
             )
         else:
             self.cnn = nn.Sequential(
@@ -33,8 +31,8 @@ class conv2d(nn.Module):
                     out_channels=out_channels,
                     kernel_size=(kernel_size, 1),                # e.g. (9,  1)
                     stride=(stride, 1),                         # e.g. (1, 1)
-                    padding=(padding, 0),                            # e.g. (4, 0)
-                ),
+                    padding=(padding, 0)                            # e.g. (4, 0)
+                )
             )
 
     def __call__(self, pose_in):
@@ -57,7 +55,7 @@ class deconv2d(nn.Module):
                 padding=(padding, 0),                            # e.g. (4, 0)
             ),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
+            nn.ReLU()
         )
 
     def __call__(self, pose_in):
@@ -119,10 +117,7 @@ class sgcn(nn.Module):
                 padding=(t_padding, 0),                 # (0, 0) by default
                 stride=(t_stride, 1),                   # (1, 1) by default
                 dilation=(t_dilation, 1),               # (1, 1) by default
-                bias=bias),
-            nn.BatchNorm2d(out_channels * kernel_size),
-            # nn.ReLU(inplace=True),
-            nn.Dropout(dropout, inplace=True),
+                bias=bias)
         )
 
     def forward(self, pose_in, A):
@@ -194,9 +189,7 @@ class st_gcn(nn.Module):
                 (stride, 1),                        # e.g. (1, 1)
                 padding,                            # e.g. (4, 0)
             ),
-            nn.BatchNorm2d(out_channels),
-            # nn.ReLU(inplace=True),
-            nn.Dropout(dropout, inplace=True)
+            nn.BatchNorm2d(out_channels)
         )
 
         # residual connection
@@ -211,11 +204,10 @@ class st_gcn(nn.Module):
                     out_channels,
                     kernel_size=1,
                     stride=(stride, 1)),
-                nn.BatchNorm2d(out_channels),
-                # nn.ReLU(inplace=True)
+                nn.BatchNorm2d(out_channels)
             )
 
-        # self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, pose_in, A):
 

@@ -7,9 +7,10 @@ from net.predictor import Predictor
 from net.reconstructor import Reconstructor
 
 
-class TrajSTGCNN(nn.Module):
+class Traj_STGCNN(nn.Module):
 
-    def __init__(self, output_feats=2,
+    def __init__(self, mode="reconstructor",
+                 output_feats=2,
                  obs_len=10,
                  pred_len=10,
                  pose_features=3,
@@ -24,13 +25,14 @@ class TrajSTGCNN(nn.Module):
         self.pose_features = pose_features
         self.loc_features = 2
         self.num_keypoints = num_keypoints
+        self.mode = mode
 
         self.reconstructor = Reconstructor(in_channels=3,
                                            out_channels=3,
                                            obs_len=10,
                                            pred_len=10,
                                            num_keypoints=25,
-                                           edge_importance_weighting=False)
+                                           edge_importance_weighting=True)
 
         self.predictor = Predictor(output_feats=2,
                                    obs_len=10,
@@ -40,8 +42,28 @@ class TrajSTGCNN(nn.Module):
 
     def forward(self, pose_in):
 
-        pose_in = self.reconstructor(pose_in)
+        output = None
+        if(self.mode == "reconstructor"):
 
-        predicted_locations = self.predictor(pose_in)
+            reconstructed_pose = self.reconstructor(pose_in)
+            output = reconstructed_pose                     # size ~ (batch_size, obs_len, pose_features*num_keypoints)
 
-        return predicted_locations
+        elif (self.mode == "predictor"):
+
+            pose_in = self.reconstructor(pose_in)
+
+            # not update reconstructor's weight while predicting
+            for p in self.reconstructor.parameters():
+                p.requires_grad = False
+
+            # replace missing keypoints with keypoints from reconstructed pose
+            # pose_in[pose_in == 0] = reconstructed_pose[pose_in == 0]
+
+            predicted_locations = self.predictor(pose_in)
+            output = predicted_locations                # size ~ (batch_size, obs_len, 2)
+
+        else:
+            print("wrong mode, only support mode: reconstructor or predictor")
+            exit(-1)
+
+        return output

@@ -57,7 +57,7 @@ def load_model(args):
         load: models
         define loss, optimizer, scheduler
     '''
-    model = Model()
+    model = Traj_STGCNN(mode=args.mode)
     if(args.use_cuda):
         model = model.cuda()
 
@@ -73,19 +73,27 @@ def train(args, model, mse_loss, optimizer, scheduler, loader_train, epoch):
     train_loss = 0
     for train_it, samples in enumerate(loader_train):
 
-        poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
-        gt_poses = Variable(samples['poses_gt'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
-        gt_locations = Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
+        poses = Variable(samples['poses'])                               # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
+        gt_locations = Variable(samples['gt_locations'])                 # gt_locations ~ [batch_size, pred_len, 2]
+
+        imputed_poses = Variable(samples['imputed_poses'])                         # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
+        gt_poses = Variable(samples['imputed_poses_gt'])                         # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
 
         if(args.use_cuda):
-            poses, gt_poses = poses.cuda(), gt_poses.cuda(),
+            poses, imputed_poses, gt_poses = poses.cuda(), imputed_poses.cuda(), gt_poses.cuda(),
             gt_locations = gt_locations.cuda()
 
         # forward
         optimizer.zero_grad()
-        predicted_locations = Traj_STGCNN(poses)                                      # output ~ [batch_size, pred_len, 2] or pose ~ (batch_size, pred_len, 75)
-
-        loss = mse_loss(predicted_locations, gt_locations)
+        if(args.mode == "reconstructor"):
+            predicted_poses = model(imputed_poses)
+            loss = mse_loss(predicted_poses, gt_poses)
+        elif(args.mode == "predictor"):
+            predicted_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
+            loss = mse_loss(predicted_locations, gt_locations)
+        else:
+            print("args.mode is {}, it must be reconstructor or predictor".format(args.mode))
+            exit(-1)
         train_loss += loss.item()
 
         # backward
@@ -106,25 +114,36 @@ def validate(args, model, mse_loss, dset_val, loader_val):
 
     # 6.2 validate
     val_loss, val_ade, val_fde = 0, 0, 0
-    model.eval()
+    if(args.mode != "reconstructor"):
+        model.eval()
     for val_it, samples in enumerate(loader_val):
 
-        poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
-        gt_poses = Variable(samples['poses_gt'])                  # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
-        gt_locations = Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
+        poses = Variable(samples['poses'])                        # pose ~ (batch_size, obs_len, pose_features)
+        gt_locations = Variable(samples['gt_locations'])          # gt_locations ~ (batch_size, pred_len, 2)
+
+        imputed_poses = Variable(samples['imputed_poses'])        # pose ~ (batch_size, obs_len, pose_features)
+        gt_poses = Variable(samples['imputed_poses_gt'])          # pose ~ (batch_size, obs_len, pose_features)
 
         if(args.use_cuda):
-            poses, gt_poses = poses.cuda(), gt_poses.cuda(),
+            poses, imputed_poses, gt_poses = poses.cuda(), imputed_poses.cuda(), gt_poses.cuda(),
             gt_locations = gt_locations.cuda()
 
         # forward
-        predicted_locations = Traj_STGCNN(poses)                                      # output ~ [batch_size, pred_len, 2]
-        loss = mse_loss(predicted_locations, gt_locations)
+        if(args.mode == "reconstructor"):
+            predicted_poses = model(imputed_poses)
+            loss = mse_loss(predicted_poses, gt_poses)
+        elif(args.mode == "predictor"):
+            predicted_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
+            loss = mse_loss(predicted_locations, gt_locations)
 
-        # calculate ade/fde
-        ade, fde = calculate_ade_fde(gt_locations, predicted_locations, dset_val.loc_mean, dset_val.loc_var)
-        val_ade += ade
-        val_fde += fde
+            # calculate ade/fde
+            ade, fde = calculate_ade_fde(gt_locations, predicted_locations, dset_val.loc_mean, dset_val.loc_var)
+            val_ade += ade
+            val_fde += fde
+        else:
+            print("args.mode is {}, it must be reconstructor or predictor".format(args.mode))
+            exit(-1)
+
         val_loss += loss.item()
 
     return val_loss / len(loader_val), val_ade / len(loader_val), val_fde / len(loader_val)
@@ -174,7 +193,7 @@ if __name__ == "__main__":
         resumed_epoch, model = resume_model(args, resumed_epoch, model)
 
     log_dict = {'epoch': [], 'train_loss': [], 'val_loss': []}
-    for epoch in range(resumed_epoch, args.nepochs + 1):
+    for epoch in range(1, args.nepochs + 1):
 
         start_time = time.time()
 

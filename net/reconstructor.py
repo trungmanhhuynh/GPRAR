@@ -46,8 +46,10 @@ class Reconstructor(nn.Module):
         temporal_kernel_size = 9
         self.data_bn = nn.BatchNorm1d(self.in_channels * A.size(1))
 
+        self.dropout = nn.Dropout(p=0.5, inplace=True)
+
         self.st_gcn_networks = nn.ModuleList((
-            st_gcn(self.in_channels, 32, (temporal_kernel_size, spatial_kernel_size), 1, residual=False, dropout=0.5),
+            st_gcn(self.in_channels, 32, (temporal_kernel_size, spatial_kernel_size), 1, residual=False),
             st_gcn(32, 64, (temporal_kernel_size, spatial_kernel_size), 1),
             st_gcn(64, 128, (temporal_kernel_size, spatial_kernel_size), 1),
             st_gcn(128, 256, (temporal_kernel_size, spatial_kernel_size), 1),
@@ -77,6 +79,9 @@ class Reconstructor(nn.Module):
         # re-shape pose_in to shape (batch_size, in_channels, obs_len, num_keypoints)
         pose_in = pose_in.view(batch_size, self.obs_len, self.num_keypoints, self.in_channels)
         pose_in = pose_in.permute(0, 3, 1, 2).contiguous()   # (batch_size, in_channels, obs_len, num_keypoints)
+
+        # drop-out
+        #pose_in = self.dropout(pose_in)
 
         # re-construct missing keypoints.
         for gcn, importance in zip(self.st_gcn_networks, self.edge_importance):
