@@ -1,5 +1,5 @@
 """
-Test module
+Train module
 
 Author: Manh Huynh
 Last Update: 06/23/2020
@@ -8,125 +8,146 @@ Last Update: 06/23/2020
 import os
 import time
 import json
-import argparse
 import torch
 import numpy as np
 from torch import optim
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from net.model4 import Model
+from torch.optim.lr_scheduler import StepLR
+
+from net.traj_stgcnn import Traj_STGCNN
 from dataset import TrajectoryDataset
-from utils.utils import calculate_ade_fde, save_traj_json
+from common.utils import calculate_ade_fde, calculate_pose_ade, save_traj
+from config import read_args
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--obs_len', type=int, default=10)
-parser.add_argument('--pred_len', type=int, default=10)
-parser.add_argument('--batch_size', type=int, default=128, 
-					help='minibatch size')
-parser.add_argument('--test_data', type=str,  default="train_val_data/JAAD/mini_size/val_data.joblib", 
-					help='file used for testing')
-parser.add_argument('--use_cuda', action='store_true', default= True, 
-					help = 'use gpu')
-parser.add_argument('--save_dir', type=str, default='./save',
-					 help='save directory')
-parser.add_argument('--resume', type=str, default="",
-					 help='resume a trained model?')
+def load_datasets(args):
+
+    dset_val = TrajectoryDataset(
+        args.val_data,
+        obs_len=args.obs_len,
+        pred_len=args.pred_len,
+        flip=False
+    )
+
+    loader_val = DataLoader(
+        dset_val,
+        batch_size=128,
+        shuffle=False,
+        num_workers=0)
+
+    return dset_val, loader_val
 
 
+def load_model(args):
+    '''
+        load: models
+        define loss, optimizer, scheduler
+    '''
+    model = Traj_STGCNN(mode=args.mode)
+    if(args.use_cuda):
+        model = model.cuda()
 
-args = parser.parse_args()
+    mse_loss = torch.nn.MSELoss()
+    optimizer = getattr(optim, args.optim)(model.parameters(), lr=args.learning_rate)
+    scheduler = StepLR(optimizer, step_size=20, gamma=0.5)
 
-args.save_model_dir = os.path.join(args.save_dir, "model")
-if not os.path.exists(args.save_model_dir ):
-	os.makedirs(args.save_model_dir )
-print(args)
+    return model, mse_loss, optimizer, scheduler
 
+def test(args, model, mse_loss, dset_val, loader_val):
 
-# Fixed the seed
-np.random.seed(1)
-torch.manual_seed(1)
+    # 6.2 validate
+    val_loss, val_ade, val_fde = 0, 0, 0
+    if(args.mode != "reconstructor"):
+        model.eval()
 
+    traj_dict = {'video_names': [], 'image_names': [], 'person_ids': [], 'traj_gt': [], 'traj_pred': [], 'pose': []}
+    for val_it, samples in enumerate(loader_val):
 
-# 1.prepare data
-dset_test = TrajectoryDataset(
-		args.test_data,
-		obs_len=args.obs_len,
-		pred_len=args.pred_len,
-		flip = False,
-		occl_ratio = 0
-		)
+        poses = Variable(samples['poses'])                        # pose ~ (batch_size, obs_len, pose_features)
+        gt_locations = Variable(samples['gt_locations'])          # gt_locations ~ (batch_size, pred_len, 2)
+        imputed_poses = Variable(samples['imputed_poses'])        # pose ~ (batch_size, obs_len, pose_features)
+        gt_poses = Variable(samples['imputed_poses_gt'])          # pose ~ (batch_size, obs_len, pose_features)
 
-loader_test = DataLoader(
-		dset_test,
-		batch_size=128, 
-		shuffle =False,
-		num_workers=0)
+        # read auxilary data
+        video_names = samples['video_names']
+        image_names = samples['image_names']
+        person_ids = samples['person_ids']
 
-print("test datasize = {}".format(len(dset_test)))
+        if(args.use_cuda):
+            poses, imputed_poses, gt_poses = poses.cuda(), imputed_poses.cuda(), gt_poses.cuda(),
+            gt_locations = gt_locations.cuda()
 
+        # forward
+        if(args.mode == "reconstructor"):
+            predicted_poses = model(imputed_poses)
+            loss = mse_loss(gt_poses, predicted_poses)
+            ade = calculate_pose_ade(gt_poses, predicted_poses, dset_val.pose_mean, dset_val.pose_var)
 
-# 2.load model
-model = Model()
-if(args.use_cuda) : model = model.cuda() 
-#model.apply(weights_init)
+        elif(args.mode == "predictor"):
+            predicted_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
+            loss = mse_loss(predicted_locations, gt_locations)
 
-# 3. define loss function 
-mse_loss = torch.nn.MSELoss()  
+            # calculate ade/fde
+            ade, fde = calculate_ade_fde(gt_locations, predicted_locations, dset_val.loc_mean, dset_val.loc_var)
+            val_fde += fde
 
-# 3. load check points ?
-resume_epoch = 0 
-if(args.resume != ""):
-	resume_dict = torch.load(args.resume)
-	model.load_state_dict(resume_dict['state_dict'])
-	resume_epoch = resume_dict['e']
+            # save predicted trajectories
+            save_traj(traj_dict, predicted_locations, video_names, image_names, person_ids,
+                      dset_val.loc_mean, dset_val.loc_var)
 
-# 4. Test
-print("---testing---")
-start_time = time.time()
+        else:
+            print("args.mode is {}, it must be reconstructor or predictor".format(args.mode))
+            exit(-1)
 
-model.eval()
-test_loss = 0 ;  test_ade = 0 ; test_fde = 0 
-traj_dict = {'video_names': [], 'image_names': [],  'person_ids': [], 'traj_gt': [], 'traj_pred': [], 'pose': []}
-for test_it, samples in enumerate(loader_test):
-	
-	poses = Variable(samples['poses'])                        # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]      
-	gt_poses = Variable(samples['poses_gt'])                  # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                                   
-	locations = Variable(samples['gt_obs_locations'])                # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]                                   
-	gt_locations =  Variable(samples['gt_locations'])               # gt_locations ~ [batch_size, pred_len, 2]
+        val_ade += ade
+        val_loss += loss.item()
 
-	if(args.use_cuda): 
-		poses, gt_poses= poses.cuda(), gt_poses.cuda(),
-		locations, gt_locations = locations.cuda(),  gt_locations.cuda()
+    print("Saving predicted trajs to file: ", traj_file)
+    # save predicted trajectories to file
+    for key in traj_dict:
+        traj_dict[key] = sum(traj_dict[key], [])           # size  == size of equal num_samples == len(loader_test)
 
-	#forward
-	pred_locations = model(poses, locations)                                      # pred_locations ~ [batch_size, pred_len, 2]
-	test_loss +=  mse_loss(pred_locations, gt_locations).item()
+    traj_file = os.path.join(args.save_dir, args.mode, "trajs.json")
+    with open(traj_file, 'w') as f:
+        json.dump(traj_dict, f)
 
-	# calculate ade/fde
-	ade, fde = calculate_ade_fde(gt_locations, pred_locations, dset_test.loc_mean, dset_test.loc_var)
-	test_ade += ade 
-	test_fde += fde
-
-	# get trajectories
-	traj_dict = save_traj_json(traj_dict, pred_locations, samples['video_names'], samples['image_names'], samples['person_ids'], \
-							   dset_test.loc_mean, dset_test.loc_var)
+    return val_loss / len(loader_val), val_ade / len(loader_val), val_fde / len(loader_val)
 
 
-test_loss /= len(loader_test)
-test_ade /=  len(loader_test)
-test_fde /= len(loader_test)
-stop_time = time.time()
+def resume_model(args, resumed_epoch, model):
+    resume_dict = torch.load(args.resume)
+    model.load_state_dict(resume_dict['state_dict'])
+    resumed_epoch = resume_dict['epoch']
+
+    return resumed_epoch, model
 
 
-print("epoch:{} test_loss:{:.5f} test_ade:{:.2f} test_fde:{:.2f} time(ms):{:.2f}".format(
-	resume_epoch, test_loss, test_ade, test_fde, (stop_time - start_time)*1000))
+if __name__ == "__main__":
 
-# save trajectories to file
-for key in traj_dict:
-	traj_dict[key] = sum(traj_dict[key], [] )           # size  == size of equal num_samples == len(loader_test)
+    # 1. read argurments
+    args = read_args()
 
-traj_file = os.path.join(args.save_dir, "trajs.json")
-with open(traj_file, 'w') as f:
-	json.dump(traj_dict, f)
+    # 2. fixed randomization
+    np.random.seed(1)
+    torch.manual_seed(1)
 
+    # 3. load dataset
+    dset_val, loader_val = load_datasets(args)
+    print("val datasize = {}".format(len(dset_val)))
+
+    # 4. load model
+    model, mse_loss, _, _ = load_model(args)
+
+    # 5. resume model
+    resumed_epoch = 1
+    if(args.resume != ""):
+        resumed_epoch, model = resume_model(args, resumed_epoch, model)
+
+    start_time = time.time()
+
+    # 6. validate
+    val_loss, val_ade, val_fde = test(args, model, mse_loss, dset_val, loader_val)
+
+    print("epoch:{} val_loss:{:.5f} val_ade:{:.2f} val_fde:{:.2f} time(ms):{:.2f}".format(
+        resumed_epoch, val_loss, val_ade, val_fde, (time.time() - start_time) * 1000))

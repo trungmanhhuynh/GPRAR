@@ -17,7 +17,7 @@ from torch.optim.lr_scheduler import StepLR
 
 from net.traj_stgcnn import Traj_STGCNN
 from dataset import TrajectoryDataset
-from common.utils import calculate_ade_fde
+from common.utils import calculate_ade_fde, calculate_pose_ade
 from config import read_args
 
 
@@ -131,19 +131,21 @@ def validate(args, model, mse_loss, dset_val, loader_val):
         # forward
         if(args.mode == "reconstructor"):
             predicted_poses = model(imputed_poses)
-            loss = mse_loss(predicted_poses, gt_poses)
+            loss = mse_loss(gt_poses, predicted_poses)
+            ade = calculate_pose_ade(gt_poses, predicted_poses, dset_val.pose_mean, dset_val.pose_var)
+
         elif(args.mode == "predictor"):
             predicted_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
             loss = mse_loss(predicted_locations, gt_locations)
 
             # calculate ade/fde
             ade, fde = calculate_ade_fde(gt_locations, predicted_locations, dset_val.loc_mean, dset_val.loc_var)
-            val_ade += ade
             val_fde += fde
         else:
             print("args.mode is {}, it must be reconstructor or predictor".format(args.mode))
             exit(-1)
 
+        val_ade += ade
         val_loss += loss.item()
 
     return val_loss / len(loader_val), val_ade / len(loader_val), val_fde / len(loader_val)
