@@ -1,14 +1,12 @@
 """
-Train module
-
+Train Predictor
 Author: Manh Huynh
-Last Update: 06/23/2020
-
 """
 import os
 import time
 import json
 import torch
+import random
 import numpy as np
 from torch import optim
 from torch.utils.data import DataLoader
@@ -16,9 +14,9 @@ from torch.autograd import Variable
 from torch.optim.lr_scheduler import StepLR
 
 from net.traj_stgcnn import Traj_STGCNN
-from dataset import TrajectoryDataset
-from common.utils import calculate_ade_fde, calculate_pose_ade
-from config import read_args
+from load_dataset_predictor import TrajectoryDataset
+from common.utils import calculate_ade_fde
+from config import read_args_predictor
 
 
 def load_datasets(args):
@@ -57,13 +55,13 @@ def load_model(args):
         load: models
         define loss, optimizer, scheduler
     '''
-    model = Traj_STGCNN(mode=args.mode)
+    model = Traj_STGCNN(mode="predictor")
     if(args.use_cuda):
         model = model.cuda()
 
     mse_loss = torch.nn.MSELoss()
     optimizer = getattr(optim, args.optim)(model.parameters(), lr=args.learning_rate)
-    scheduler = StepLR(optimizer, step_size=20, gamma=0.5)
+    scheduler = StepLR(optimizer, step_size=args.lr_step, gamma=0.5)
 
     return model, mse_loss, optimizer, scheduler
 
@@ -76,24 +74,13 @@ def train(args, model, mse_loss, optimizer, scheduler, loader_train, epoch):
         poses = Variable(samples['poses'])                               # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
         gt_locations = Variable(samples['gt_locations'])                 # gt_locations ~ [batch_size, pred_len, 2]
 
-        imputed_poses = Variable(samples['imputed_poses'])                         # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
-        gt_poses = Variable(samples['imputed_poses_gt'])                         # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
-
         if(args.use_cuda):
-            poses, imputed_poses, gt_poses = poses.cuda(), imputed_poses.cuda(), gt_poses.cuda(),
-            gt_locations = gt_locations.cuda()
+            poses, gt_locations = poses.cuda(), gt_locations.cuda()
 
         # forward
         optimizer.zero_grad()
-        if(args.mode == "reconstructor"):
-            predicted_poses = model(imputed_poses)
-            loss = mse_loss(predicted_poses, gt_poses)
-        elif(args.mode == "predictor"):
-            predicted_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
-            loss = mse_loss(predicted_locations, gt_locations)
-        else:
-            print("args.mode is {}, it must be reconstructor or predictor".format(args.mode))
-            exit(-1)
+        pred_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
+        loss = mse_loss(pred_locations, gt_locations)
         train_loss += loss.item()
 
         # backward
@@ -107,46 +94,30 @@ def train(args, model, mse_loss, optimizer, scheduler, loader_train, epoch):
                                                          args.nepochs * len(loader_train),
                                                          train_loss / (train_it + 1)))
     scheduler.step()    # update learning rate
-
     return train_loss / len(loader_train)
 
 def validate(args, model, mse_loss, dset_val, loader_val):
 
     # 6.2 validate
     val_loss, val_ade, val_fde = 0, 0, 0
-    if(args.mode != "reconstructor"):
-        model.eval()
+    model.eval()
     for val_it, samples in enumerate(loader_val):
 
         poses = Variable(samples['poses'])                        # pose ~ (batch_size, obs_len, pose_features)
         gt_locations = Variable(samples['gt_locations'])          # gt_locations ~ (batch_size, pred_len, 2)
 
-        imputed_poses = Variable(samples['imputed_poses'])        # pose ~ (batch_size, obs_len, pose_features)
-        gt_poses = Variable(samples['imputed_poses_gt'])          # pose ~ (batch_size, obs_len, pose_features)
-
         if(args.use_cuda):
-            poses, imputed_poses, gt_poses = poses.cuda(), imputed_poses.cuda(), gt_poses.cuda(),
-            gt_locations = gt_locations.cuda()
+            poses, gt_locations = poses.cuda(), gt_locations.cuda()
 
         # forward
-        if(args.mode == "reconstructor"):
-            predicted_poses = model(imputed_poses)
-            loss = mse_loss(gt_poses, predicted_poses)
-            ade = calculate_pose_ade(gt_poses, predicted_poses, dset_val.pose_mean, dset_val.pose_var)
-
-        elif(args.mode == "predictor"):
-            predicted_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
-            loss = mse_loss(predicted_locations, gt_locations)
-
-            # calculate ade/fde
-            ade, fde = calculate_ade_fde(gt_locations, predicted_locations, dset_val.loc_mean, dset_val.loc_var)
-            val_fde += fde
-        else:
-            print("args.mode is {}, it must be reconstructor or predictor".format(args.mode))
-            exit(-1)
-
-        val_ade += ade
+        pred_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
+        loss = mse_loss(pred_locations, gt_locations)
         val_loss += loss.item()
+
+        # calculate ade/fde
+        ade, fde = calculate_ade_fde(gt_locations, pred_locations, dset_val.loc_mean, dset_val.loc_var)
+        val_ade += ade
+        val_fde += fde
 
     return val_loss / len(loader_val), val_ade / len(loader_val), val_fde / len(loader_val)
 
@@ -176,12 +147,12 @@ def save_log(args, log_dict, train_loss, val_loss, epoch):
 if __name__ == "__main__":
 
     # 1. read argurments
-    args = read_args()
+    args = read_args_predictor()
 
     # 2. fixed randomization
     np.random.seed(1)
     torch.manual_seed(1)
-
+    random.seed(1)
     # 3. load dataset
     dset_train, loader_train, dset_val, loader_val = load_datasets(args)
     print("train/val datasize = {}/{}".format(len(dset_train), len(dset_val)))

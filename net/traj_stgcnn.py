@@ -50,17 +50,14 @@ class Traj_STGCNN(nn.Module):
 
         elif (self.mode == "predictor"):
 
-            pose_in = self.reconstructor(pose_in)
+            # pose_in = self.reconstructor(pose_in)
 
-            # not update reconstructor's weight while predicting
-            for p in self.reconstructor.parameters():
-                p.requires_grad = False
+            # # not update reconstructor's weight while predicting
+            # for p in self.reconstructor.parameters():
+            #     p.requires_grad = False
 
-            # replace missing keypoints with keypoints from reconstructed pose
-            # pose_in[pose_in == 0] = reconstructed_pose[pose_in == 0]
-
-            predicted_locations = self.predictor(pose_in)
-            output = predicted_locations                # size ~ (batch_size, obs_len, 2)
+            pred_locations = self.predictor(pose_in)
+            output = pred_locations                # size ~ (batch_size, obs_len, 2)
 
         else:
             print("wrong mode, only support mode: reconstructor or predictor")

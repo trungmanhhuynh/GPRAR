@@ -79,6 +79,12 @@ By default, this script plots both pose and bounding box on the same images.
 
 ## Generate train/val data
 
+#### Generate train/val data for reconstructor
+If use high-confident poses and large data size 
+```
+  python generate_data_reconstructor.py --hc_poses --d_size large
+```
+
   To generate train/val data, run the following: 
 ```
 

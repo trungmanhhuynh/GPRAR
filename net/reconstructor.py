@@ -81,7 +81,7 @@ class Reconstructor(nn.Module):
         pose_in = pose_in.permute(0, 3, 1, 2).contiguous()   # (batch_size, in_channels, obs_len, num_keypoints)
 
         # drop-out
-        #pose_in = self.dropout(pose_in)
+        # pose_in = self.dropout(pose_in)
 
         # re-construct missing keypoints.
         for gcn, importance in zip(self.st_gcn_networks, self.edge_importance):
