@@ -17,7 +17,7 @@ class Reconstructor(nn.Module):
 
     def __init__(self,
                  in_channels=3,   # [x,y,c]
-                 out_channels=3,
+                 out_channels=2,
                  obs_len=10,
                  pred_len=10,
                  num_keypoints=25,

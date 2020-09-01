@@ -10,7 +10,7 @@ def read_args_constructor():
     parser.add_argument('--pred_len', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=128,
                         help='minibatch size')
-    parser.add_argument('--learning_rate', type=float, default=0.01,
+    parser.add_argument('--learning_rate', type=float, default=0.001,
                         help='learning rate')
     parser.add_argument('--optim', type=str, default='Adam',
                         help="ctype of optimizer: 'rmsprop' 'adam'")

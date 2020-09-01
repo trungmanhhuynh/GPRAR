@@ -39,6 +39,10 @@ class PoseDataset(Dataset):
 
         self.generate_noisy_pose = generate_noisy_pose
         self.flip = flip
+        self.xy_indexes = []
+        for k in range(0, 25):
+            self.xy_indexes.append(3 * k)
+            self.xy_indexes.append(3 * k + 1)
 
         # read train/val from joblib file
         self.read_data(data_file)
@@ -68,7 +72,7 @@ class PoseDataset(Dataset):
         # convert to tensor
         poses = torch.tensor(poses, dtype=torch.float)                                          # ~ (num_samples, traj_len, num_keypoints*pose_features)
 
-        self.poses = poses
+        self.poses = poses[:, :, self.xy_indexes]
         self.video_names = video_names
         self.image_names = image_names
         self.person_ids = person_ids
@@ -76,18 +80,22 @@ class PoseDataset(Dataset):
 
         print(self.poses.shape)
 
-    def generate_noisy_poses(self, poses, occluded_ratio):
+    def generate_noisy_poses(self, poses, num_missing_kpt):
 
         noisy_poses = poses.clone()
-        occluded_kpt = random.choices(range(0, self.obs_len * self.num_keypoints), k=int(self.obs_len * self.num_keypoints * occluded_ratio))
-        for k in occluded_kpt:
-            occ_t = int(k / self.num_keypoints)
-            occ_k = int(k % self.num_keypoints)
-            noisy_poses[occ_t, occ_k * 3: occ_k * 3 + 3] = 0
+        missing_kpts = random.choices(range(0, self.num_keypoints), k=num_missing_kpt)
+        missing_indexes = []
+        for k in missing_kpts:
+            noisy_poses[:, k * 2] = 0  # set x, y for each missing keypoint to zero
+            noisy_poses[:, k * 2 + 1] = 0  # set x, y for each missing keypoint to zero
 
-        # print(poses)
-        # input("jere")
-        return noisy_poses
+            missing_indexes.append(k * 2)
+            missing_indexes.append(k * 2 + 1)
+
+        missing_indexes = torch.tensor(missing_indexes, dtype=torch.long)
+        missing_indexes = missing_indexes.unsqueeze(0).repeat(10, 1)            # create [10, num_missing_kpt*2] tensor
+
+        return noisy_poses, missing_indexes
 
     def __getitem__(self, index):
         """
@@ -102,14 +110,15 @@ class PoseDataset(Dataset):
         }
 
         if (self.flip):
-            sample['poses'][:, 0::3] = self.image_width - sample['poses'][:, 0::3]
-            sample['poses_gt'][:, 0::3] = self.image_width - sample['poses_gt'][:, 0::3]
+            sample['poses'][:, 0::2] = self.image_width - sample['poses'][:, 0::2]
+            sample['poses_gt'][:, 0::2] = self.image_width - sample['poses_gt'][:, 0::2]
 
         # Reconstructor requires input must be noisy poses
         if (self.generate_noisy_pose):
-            occluded_ratio = random.uniform(0, 0.5)
-            sample['noisy_poses'] = self.generate_noisy_poses(sample['poses'], occluded_ratio=occluded_ratio)
-            sample['present_idx'] = sample['noisy_poses'] != 0
+            num_missing_kpt = 15
+            sample['noisy_poses'], missing_indexes = self.generate_noisy_poses(sample['poses'], num_missing_kpt=num_missing_kpt)
+            # sample['missing_idx'] = sample['noisy_poses'] == 0
+            sample['missing_indexes'] = missing_indexes
         else:
             sample['noisy_poses'] = sample['poses'].clone()
 

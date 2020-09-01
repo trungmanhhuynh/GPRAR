@@ -55,21 +55,15 @@ def calculate_ade_fde(traj_gt, traj_pred, mean, var):
 
     return ade, fde
 
-def calculate_pose_ade(poses_gt, pred_poses, mean, var):
+def calculate_pose_ade(poses_gt, pred_poses, missing_idx=None):
 
     # pred_locations ~ tensor [batch_size, pred_len, 2]
     # pred_locations ~ [batch_size, pred_len, 2]
 
-    poses_gt = poses_gt.data.cpu()
-    pred_poses = pred_poses.data.cpu()
-
-    # denormalize
-    poses_gt = std_denormalize(poses_gt, mean, var)
-    pred_poses = std_denormalize(pred_poses, mean, var)
-
-    temp = (poses_gt - pred_poses)**2
-    ade = torch.sqrt(temp[:, :, 0] + temp[:, :, 1])
-    ade = torch.mean(ade)
+    if missing_idx is None:
+        temp = (poses_gt - pred_poses)**2
+        ade = torch.sqrt(temp[:, :, 0] + temp[:, :, 1])
+        ade = torch.mean(ade)
 
     return ade
 
