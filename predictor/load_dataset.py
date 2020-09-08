@@ -39,6 +39,10 @@ class TrajectoryDataset(Dataset):
         self.num_keypoints = num_keypoints
         self.image_width = image_width
         self.flip = flip
+        self.xy_indexes = []
+        for k in range(0, 25):
+            self.xy_indexes.append(3 * k)
+            self.xy_indexes.append(3 * k + 1)
 
         # read train/val from joblib file
         self.read_data(data_file)
@@ -70,7 +74,7 @@ class TrajectoryDataset(Dataset):
         poses = torch.tensor(poses, dtype=torch.float)                                          # ~ (num_samples, traj_len, keypoints*pose_features)
         gt_locations = torch.tensor(gt_locations, dtype=torch.float)                            # ~ (num_samples, traj_len, 2)
 
-        self.poses = poses
+        self.poses = poses[:, :, self.xy_indexes]
         self.gt_locations = gt_locations
         self.video_names = video_names
         self.image_names = image_names
@@ -84,6 +88,7 @@ class TrajectoryDataset(Dataset):
 
         sample = {
             'poses': self.poses[index, :self.obs_len, :],                           # raw poses
+            'obs_locations': self.gt_locations[index, :self.obs_len, :],
             'gt_locations': self.gt_locations[index, -self.pred_len:, :],
             'video_names': self.video_names[index],
             'image_names': self.image_names[index],
@@ -93,8 +98,11 @@ class TrajectoryDataset(Dataset):
         if (self.flip):
             sample['poses'][:, 0::3] = self.image_width - sample['poses'][:, 0::3]
             sample['gt_locations'][:, 0] = self.image_width - sample['gt_locations'][:, 0]
+            sample['obs_locations'][:, 0] = self.image_width - sample['obs_locations'][:, 0]
 
+        sample['missing_keypoints'] = sample['poses'] == 0
         sample['poses'] = std_normalize(sample['poses'], self.pose_mean, self.pose_var)
         sample['gt_locations'] = std_normalize(sample['gt_locations'], self.loc_mean, self.loc_var)
+        sample['obs_locations'] = std_normalize(sample['obs_locations'], self.loc_mean, self.loc_var)
 
         return sample

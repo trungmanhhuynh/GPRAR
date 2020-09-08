@@ -21,8 +21,8 @@ class conv2d(nn.Module):
                     stride=(stride, 1),                         # e.g. (1, 1)
                     padding=(padding, 0),                            # e.g. (4, 0)
                 ),
+                nn.ReLU(),
                 nn.BatchNorm2d(out_channels),
-                nn.ReLU()
             )
         else:
             self.cnn = nn.Sequential(
@@ -54,8 +54,8 @@ class deconv2d(nn.Module):
                 stride=(stride, 1),                         # e.g. (1, 1)
                 padding=(padding, 0),                            # e.g. (4, 0)
             ),
+            nn.ReLU(),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU()
         )
 
     def __call__(self, pose_in):
@@ -117,7 +117,9 @@ class sgcn(nn.Module):
                 padding=(t_padding, 0),                 # (0, 0) by default
                 stride=(t_stride, 1),                   # (1, 1) by default
                 dilation=(t_dilation, 1),               # (1, 1) by default
-                bias=bias)
+                bias=bias),
+            nn.ReLU(),
+            nn.BatchNorm2d(out_channels * kernel_size)
         )
 
     def forward(self, pose_in, A):
@@ -189,6 +191,7 @@ class st_gcn(nn.Module):
                 (stride, 1),                        # e.g. (1, 1)
                 padding,                            # e.g. (4, 0)
             ),
+            nn.ReLU(),
             nn.BatchNorm2d(out_channels)
         )
 
@@ -204,10 +207,11 @@ class st_gcn(nn.Module):
                     out_channels,
                     kernel_size=1,
                     stride=(stride, 1)),
+                nn.ReLU(),
                 nn.BatchNorm2d(out_channels)
             )
 
-        self.relu = nn.ReLU(inplace=True)
+        # self.relu = nn.ReLU(inplace=True)
 
     def forward(self, pose_in, A):
 

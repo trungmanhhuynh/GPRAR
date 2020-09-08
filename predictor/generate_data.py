@@ -98,11 +98,11 @@ def generate_train_val_data(args):
     # generate samples (list of features) for each pedestrian
     video_dir = os.path.join(args.pose_dir)
 
-    if(args.data_size == "small"):
+    if(args.d_size == "small"):
         num_videos = random.sample(os.listdir(video_dir), k=30)
-    elif(args.data_size == "medium"):
+    elif(args.d_size == "medium"):
         num_videos = random.sample(os.listdir(video_dir), k=50)
-    elif(args.data_size == "large"):
+    elif(args.d_size == "large"):
         num_videos = os.listdir(video_dir)                              # use all videos
     else:
         print("wrong data size")
@@ -191,8 +191,8 @@ if __name__ == "__main__":
                         help='directory of processed pose feature')
     parser.add_argument('--output_dir', type=str, default="/home/manhh/github/Traj-STGCNN/train_val_data/JAAD",
                         help='directory of output data')
-    parser.add_argument('--data_size', type=str, default="small",
-                        help='data_size: small, medium, large')
+    parser.add_argument('--d_size', type=str, default="small",
+                        help='d_size: small, medium, large')
     parser.add_argument('--num_keypoints', type=int, default=25,
                         help='number of keypoints per pose')
     args = parser.parse_args()
@@ -206,8 +206,8 @@ if __name__ == "__main__":
     # dump to file
     if not os.path.exists(os.path.join(args.output_dir, "predictor")):
         os.makedirs(os.path.join(args.output_dir, "predictor"))
-    train_data_file = os.path.join(args.output_dir, "predictor", "train_{}.joblib".format(args.data_size))
-    val_data_file = os.path.join(args.output_dir, "predictor", "val_{}.joblib".format(args.data_size))
+    train_data_file = os.path.join(args.output_dir, "predictor", "train_{}.joblib".format(args.d_size))
+    val_data_file = os.path.join(args.output_dir, "predictor", "val_{}.joblib".format(args.d_size))
     joblib.dump(train_samples, train_data_file)
     joblib.dump(val_samples, val_data_file)
 

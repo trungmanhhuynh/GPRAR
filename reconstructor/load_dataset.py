@@ -9,12 +9,14 @@ class PoseDataset(Dataset):
     """Dataloader for the Pose datasets"""
 
     def __init__(self, data_file,
-                 generate_noisy_pose=False,
+                 add_noise=False,
                  obs_len=10,
                  pred_len=10,
                  pose_features=3,              # x, y, c
                  num_keypoints=25,                 # using openpose 25 keypoints
                  flip=False,
+                 pose_mean=None,
+                 pose_var=None,
                  image_width=1280):
         """
         Args:
@@ -24,7 +26,7 @@ class PoseDataset(Dataset):
                         'video_names': [traj_len]
                         'image_names': [traj_len]
                         'person_ids': [traj_len]
-                 }]
+                 }] q
 
         """
         super(PoseDataset, self).__init__()
@@ -36,8 +38,9 @@ class PoseDataset(Dataset):
         self.pose_features = pose_features
         self.num_keypoints = num_keypoints
         self.image_width = image_width
+        self.image_height = 960
 
-        self.generate_noisy_pose = generate_noisy_pose
+        self.add_noise = add_noise
         self.flip = flip
         self.xy_indexes = []
         for k in range(0, 25):
@@ -48,7 +51,17 @@ class PoseDataset(Dataset):
         self.read_data(data_file)
 
         # calculate mean/var
-        self.pose_mean, self.pose_var = calc_mean_variance(self.poses)                               # pose mean, var ~ [75]
+        if(pose_mean is None and pose_var is None):
+            self.pose_mean, self.pose_var = calc_mean_variance(self.poses)                               # pose mean, var ~ [75]
+        else:
+            self.pose_mean = pose_mean
+            self.pose_var = pose_var
+
+        self.pose_mean[0::2] = self.image_width / 2
+        self.pose_mean[1::2] = self.image_height / 2
+        self.pose_var[0::2] = self.image_width - self.image_width / 2
+        self.pose_var[1::2] = self.image_height - self.image_height / 2
+
         # print("pose_mean = ", self.pose_mean)
         # print("pose_var = ", self.pose_var)
 
@@ -89,13 +102,7 @@ class PoseDataset(Dataset):
             noisy_poses[:, k * 2] = 0  # set x, y for each missing keypoint to zero
             noisy_poses[:, k * 2 + 1] = 0  # set x, y for each missing keypoint to zero
 
-            missing_indexes.append(k * 2)
-            missing_indexes.append(k * 2 + 1)
-
-        missing_indexes = torch.tensor(missing_indexes, dtype=torch.long)
-        missing_indexes = missing_indexes.unsqueeze(0).repeat(10, 1)            # create [10, num_missing_kpt*2] tensor
-
-        return noisy_poses, missing_indexes
+        return noisy_poses
 
     def __getitem__(self, index):
         """
@@ -109,16 +116,14 @@ class PoseDataset(Dataset):
             'person_ids': self.person_ids[index]
         }
 
-        if (self.flip):
+        if (self.flip and random.random() > 0.5):
             sample['poses'][:, 0::2] = self.image_width - sample['poses'][:, 0::2]
             sample['poses_gt'][:, 0::2] = self.image_width - sample['poses_gt'][:, 0::2]
 
         # Reconstructor requires input must be noisy poses
-        if (self.generate_noisy_pose):
-            num_missing_kpt = 15
-            sample['noisy_poses'], missing_indexes = self.generate_noisy_poses(sample['poses'], num_missing_kpt=num_missing_kpt)
-            # sample['missing_idx'] = sample['noisy_poses'] == 0
-            sample['missing_indexes'] = missing_indexes
+        if (self.add_noise):
+            num_missing_kpt = random.randint(0, 10)
+            sample['noisy_poses'] = self.generate_noisy_poses(sample['poses'], num_missing_kpt=num_missing_kpt)
         else:
             sample['noisy_poses'] = sample['poses'].clone()
 

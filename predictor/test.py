@@ -14,9 +14,9 @@ from torch.autograd import Variable
 from torch.optim.lr_scheduler import StepLR
 
 from net.traj_stgcnn import Traj_STGCNN
-from load_dataset_predictor import TrajectoryDataset
+from load_dataset import TrajectoryDataset
 from common.utils import calculate_ade_fde, save_traj
-from config import read_args_predictor
+from predictor.config import read_args_predictor
 
 def load_datasets(args):
 
@@ -24,7 +24,7 @@ def load_datasets(args):
         args.val_data,
         obs_len=args.obs_len,
         pred_len=args.pred_len,
-        flip=False
+        flip=args.flip
     )
 
     loader_val = DataLoader(
@@ -61,6 +61,8 @@ def test(args, model, epoch, mse_loss, dset_val, loader_val):
 
         poses = Variable(samples['poses'])                        # pose ~ (batch_size, obs_len, pose_features)
         gt_locations = Variable(samples['gt_locations'])          # gt_locations ~ (batch_size, pred_len, 2)
+        missing_keypoints = samples['missing_keypoints']
+        obs_locations = Variable(samples['obs_locations'])
 
         # read auxilary data
         video_names = samples['video_names']
@@ -69,26 +71,27 @@ def test(args, model, epoch, mse_loss, dset_val, loader_val):
 
         if(args.use_cuda):
             poses, gt_locations = poses.cuda(), gt_locations.cuda()
+            obs_locations = obs_locations.cuda()
 
         # forward
-        predicted_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
-        loss = mse_loss(predicted_locations, gt_locations)
+        pred_locations = model(poses, missing_keypoints, obs_locations)                                      # output ~ [batch_size, pred_len, 2]
+        loss = mse_loss(pred_locations, gt_locations)
         val_loss += loss.item()
 
         # calculate ade/fde
-        ade, fde = calculate_ade_fde(gt_locations, predicted_locations, dset_val.loc_mean, dset_val.loc_var)
+        ade, fde = calculate_ade_fde(gt_locations, pred_locations, dset_val.loc_mean, dset_val.loc_var)
         val_ade += ade
         val_fde += fde
 
         # save predicted trajectories
-        save_traj(traj_dict, predicted_locations, video_names, image_names, person_ids,
+        save_traj(traj_dict, pred_locations, video_names, image_names, person_ids,
                   dset_val.loc_mean, dset_val.loc_var)
 
     # save predicted trajectories to file
     for key in traj_dict:
         traj_dict[key] = sum(traj_dict[key], [])           # size  == size of equal num_samples == len(loader_test)
 
-    traj_file = os.path.join(args.save_dir, "predictor", "trajs.json")
+    traj_file = os.path.join(args.save_traj_dir, "trajs.json")
     print("Saving predicted trajs to file: ", traj_file)
     with open(traj_file, 'w') as f:
         json.dump(traj_dict, f)

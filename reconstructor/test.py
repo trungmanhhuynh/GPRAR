@@ -12,19 +12,21 @@ from torch.autograd import Variable
 from torch.optim.lr_scheduler import StepLR
 
 from net.traj_stgcnn import Traj_STGCNN
-from load_dataset_reconstructor import PoseDataset
+from load_dataset import PoseDataset
 from common.utils import calculate_pose_ade, plot_pose_results, std_denormalize
-from config import read_args_constructor
+from reconstructor.config import read_args_constructor
 
 
-def load_datasets(args):
+def load_datasets(args, pose_mean=None, pose_var=None):
 
     dset_val = PoseDataset(
         args.val_data,
-        generate_noisy_pose=args.add_noise,
+        add_noise=args.add_noise,
         obs_len=args.obs_len,
         pred_len=args.pred_len,
-        flip=False
+        flip=args.flip,
+        pose_mean=pose_mean,
+        pose_var=pose_var
     )
 
     loader_val = DataLoader(
@@ -52,7 +54,7 @@ def load_model(args):
 
     return model, mse_loss, optimizer, scheduler
 
-def test(args, model, epoch, mse_loss, dset_val, loader_val):
+def test(args, model, epoch, mse_loss, pose_mean, pose_var, loader_val):
 
     # 6.2 validate
     val_loss, val_ade = 0, 0
@@ -71,28 +73,30 @@ def test(args, model, epoch, mse_loss, dset_val, loader_val):
 
         # forward
         pred_poses = model(noisy_poses)
-        # pred_poses[present_idx] = noisy_poses[present_idx]
+        loss = mse_loss(pred_poses, poses_gt)
 
-        loss = mse_loss(poses_gt, pred_poses)
-        ade = calculate_pose_ade(poses_gt, pred_poses, dset_val.pose_mean, dset_val.pose_var)
-
-        # de-normalize
+        # denormalize
         noisy_poses = std_denormalize(noisy_poses.data.cpu(), dset_val.pose_mean, dset_val.pose_var)
         poses_gt = std_denormalize(poses_gt.data.cpu(), dset_val.pose_mean, dset_val.pose_var)
         pred_poses = std_denormalize(pred_poses.data.cpu(), dset_val.pose_mean, dset_val.pose_var)
 
-        # plot_pose_results(noisy_poses=noisy_poses,
-        #                   poses_gt=poses_gt,
-        #                   pred_poses=pred_poses,
-        #                   epoch=epoch,
-        #                   video_names=video_names,
-        #                   image_names=image_names,
-        #                   image_dir=args.image_dir,
-        #                   pose_res_dir=args.pose_res_dir,
-        #                   obs_len=args.obs_len)
-
+        # calculate ade
+        ade = calculate_pose_ade(pred_poses, poses_gt)
         val_ade += ade
         val_loss += loss.item()
+
+        pred_poses[noisy_poses != 0] = noisy_poses[noisy_poses != 0]
+
+        # plot pose results
+        plot_pose_results(noisy_poses=noisy_poses,
+                          poses_gt=poses_gt,
+                          pred_poses=pred_poses,
+                          epoch=epoch,
+                          video_names=video_names,
+                          image_names=image_names,
+                          image_dir=args.image_dir,
+                          pose_res_dir=args.pose_res_dir,
+                          obs_len=args.obs_len)
 
     return val_loss / len(loader_val), val_ade / len(loader_val)
 
@@ -101,8 +105,10 @@ def resume_model(args, resumed_epoch, model):
     resume_dict = torch.load(args.resume)
     model.load_state_dict(resume_dict['state_dict'])
     resumed_epoch = resume_dict['epoch']
+    pose_mean = resume_dict['pose_mean']
+    pose_var = resume_dict['pose_var']
 
-    return resumed_epoch, model
+    return resumed_epoch, model, pose_mean, pose_var
 
 
 if __name__ == "__main__":
@@ -115,22 +121,22 @@ if __name__ == "__main__":
     torch.manual_seed(1)
     random.seed(1)
 
-    # 3. load dataset
-    dset_val, loader_val = load_datasets(args)
-    print("val datasize = {}".format(len(dset_val)))
-
     # 4. load model
     model, mse_loss, _, _ = load_model(args)
 
     # 5. resume model
     resumed_epoch = 1
     if(args.resume != ""):
-        resumed_epoch, model = resume_model(args, resumed_epoch, model)
+        resumed_epoch, model, pose_mean, pose_var = resume_model(args, resumed_epoch, model)
+
+    # 3. load dataset
+    dset_val, loader_val = load_datasets(args, pose_mean=pose_mean, pose_var=pose_var)
+    print("val datasize = {}".format(len(dset_val)))
 
     start_time = time.time()
 
     # 6. validate
-    val_loss, val_ade = test(args, model, resumed_epoch, mse_loss, dset_val, loader_val)
+    val_loss, val_ade = test(args, model, resumed_epoch, mse_loss, dset_val.pose_mean, dset_val.pose_var, loader_val)
 
     print("epoch:{} val_loss:{:.5f} val_ade:{:.2f} time(ms):{:.2f}".format(
         resumed_epoch, val_loss, val_ade, (time.time() - start_time) * 1000))

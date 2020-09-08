@@ -14,9 +14,9 @@ from torch.autograd import Variable
 from torch.optim.lr_scheduler import StepLR
 
 from net.traj_stgcnn import Traj_STGCNN
-from load_dataset_predictor import TrajectoryDataset
+from predictor.load_dataset import TrajectoryDataset
 from common.utils import calculate_ade_fde
-from config import read_args_predictor
+from predictor.config import read_args_predictor
 
 
 def load_datasets(args):
@@ -25,7 +25,7 @@ def load_datasets(args):
         args.train_data,
         obs_len=args.obs_len,
         pred_len=args.pred_len,
-        flip=False
+        flip=args.flip
     )
 
     loader_train = DataLoader(
@@ -38,7 +38,7 @@ def load_datasets(args):
         args.val_data,
         obs_len=args.obs_len,
         pred_len=args.pred_len,
-        flip=False
+        flip=args.flip
     )
 
     loader_val = DataLoader(
@@ -55,7 +55,7 @@ def load_model(args):
         load: models
         define loss, optimizer, scheduler
     '''
-    model = Traj_STGCNN(mode="predictor")
+    model = Traj_STGCNN("predictor")
     if(args.use_cuda):
         model = model.cuda()
 
@@ -73,10 +73,12 @@ def train(args, model, mse_loss, optimizer, scheduler, loader_train, epoch):
 
         poses = Variable(samples['poses'])                               # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
         gt_locations = Variable(samples['gt_locations'])                 # gt_locations ~ [batch_size, pred_len, 2]
+        missing_keypoints = samples['missing_keypoints']
+        obs_locations = Variable(samples['obs_locations'])
 
         if(args.use_cuda):
             poses, gt_locations = poses.cuda(), gt_locations.cuda()
-
+            obs_locations = obs_locations.cuda()
         # forward
         optimizer.zero_grad()
         pred_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
@@ -105,9 +107,12 @@ def validate(args, model, mse_loss, dset_val, loader_val):
 
         poses = Variable(samples['poses'])                        # pose ~ (batch_size, obs_len, pose_features)
         gt_locations = Variable(samples['gt_locations'])          # gt_locations ~ (batch_size, pred_len, 2)
+        missing_keypoints = samples['missing_keypoints']
+        obs_locations = Variable(samples['obs_locations'])
 
         if(args.use_cuda):
             poses, gt_locations = poses.cuda(), gt_locations.cuda()
+            obs_locations = obs_locations.cuda()
 
         # forward
         pred_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
@@ -133,6 +138,8 @@ def resume_model(args, resumed_epoch, model):
     resume_dict = torch.load(args.resume)
     model.load_state_dict(resume_dict['state_dict'])
     resumed_epoch = resume_dict['epoch']
+
+    print("resumed model:", resume_dict['epoch'])
 
     return resumed_epoch, model
 

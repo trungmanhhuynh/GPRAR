@@ -15,19 +15,19 @@ from torch.autograd import Variable
 from torch.optim.lr_scheduler import StepLR
 
 from net.traj_stgcnn import Traj_STGCNN
-from load_dataset_reconstructor import PoseDataset
+from load_dataset import PoseDataset
 from common.utils import calculate_pose_ade, std_denormalize
-from config import read_args_constructor
+from reconstructor.config import read_args_constructor
 
 
 def load_datasets(args):
     # 1.prepare data
     dset_train = PoseDataset(
         args.train_data,
-        generate_noisy_pose=args.add_noise,
+        add_noise=args.add_noise,
         obs_len=args.obs_len,
         pred_len=args.pred_len,
-        flip=False
+        flip=args.flip
     )
 
     loader_train = DataLoader(
@@ -38,10 +38,10 @@ def load_datasets(args):
 
     dset_val = PoseDataset(
         args.val_data,
-        generate_noisy_pose=args.add_noise,
+        add_noise=args.add_noise,
         obs_len=args.obs_len,
         pred_len=args.pred_len,
-        flip=False
+        flip=args.flip
     )
 
     loader_val = DataLoader(
@@ -76,16 +76,14 @@ def train(args, model, mse_loss, optimizer, scheduler, loader_train, epoch):
 
         noisy_poses = Variable(samples['noisy_poses'])
         poses_gt = Variable(samples['poses_gt'])                         # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
-        missing_indexes = samples['missing_indexes']
 
         if(args.use_cuda):
             noisy_poses, poses_gt = noisy_poses.cuda(), poses_gt.cuda()
-            missing_indexes = missing_indexes.cuda()
 
         # forward
         optimizer.zero_grad()
         pred_pose = model(noisy_poses)
-        loss = mse_loss(pred_pose.gather(2, missing_indexes), poses_gt.gather(2, missing_indexes))
+        loss = mse_loss(pred_pose, poses_gt)
         train_loss += loss.item()
 
         # backward
@@ -102,7 +100,7 @@ def train(args, model, mse_loss, optimizer, scheduler, loader_train, epoch):
 
     return train_loss / len(loader_train)
 
-def validate(args, model, mse_loss, dset_val, loader_val):
+def validate(args, model, mse_loss, pose_mean, pose_var, loader_val):
 
     # 6.2 validate
     val_loss, val_ade = 0, 0
@@ -111,21 +109,18 @@ def validate(args, model, mse_loss, dset_val, loader_val):
 
         noisy_poses = Variable(samples['noisy_poses'])
         poses_gt = Variable(samples['poses_gt'])                         # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
-        missing_indexes = samples['missing_indexes']
 
         if(args.use_cuda):
             noisy_poses, poses_gt = noisy_poses.cuda(), poses_gt.cuda()
-            missing_indexes = missing_indexes.cuda()
 
         # forward
         pred_poses = model(noisy_poses)
-        loss = mse_loss(pred_poses.gather(2, missing_indexes), poses_gt.gather(2, missing_indexes))
+        loss = mse_loss(pred_poses, poses_gt)
 
         # denormalize
-        poses_gt = std_denormalize(poses_gt.data.cpu(), dset_val.pose_mean, dset_val.pose_var)
-        pred_poses = std_denormalize(pred_poses.data.cpu(), dset_val.pose_mean, dset_val.pose_var)
-        missing_indexes = missing_indexes.data.cpu()
-        ade = calculate_pose_ade(pred_poses.gather(2, missing_indexes), poses_gt.gather(2, missing_indexes))
+        poses_gt = std_denormalize(poses_gt.data.cpu(), pose_mean, pose_var)
+        pred_poses = std_denormalize(pred_poses.data.cpu(), pose_mean, pose_var)
+        ade = calculate_pose_ade(pred_poses, poses_gt)
 
         val_ade += ade
         val_loss += loss.item()
@@ -133,10 +128,14 @@ def validate(args, model, mse_loss, dset_val, loader_val):
     return val_loss / len(loader_val), val_ade / len(loader_val)
 
 
-def save_model(args, model, epoch):
+def save_model(args, model, epoch, pose_mean, pose_var):
 
     model_file = os.path.join(args.save_model_dir, "model_epoch_{}.pt".format(epoch))
-    torch.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_file)
+    torch.save({'state_dict': model.state_dict(),
+                'epoch': epoch,
+                'pose_mean': pose_mean,
+                'pose_var': pose_var
+                }, model_file)
     print("saved model to file:", model_file)
 
 
@@ -144,8 +143,10 @@ def resume_model(args, resumed_epoch, model):
     resume_dict = torch.load(args.resume)
     model.load_state_dict(resume_dict['state_dict'])
     resumed_epoch = resume_dict['epoch']
+    pose_mean = resume_dict['pose_mean']
+    pose_var = resume_dict['pose_var']
 
-    return resumed_epoch, model
+    return resumed_epoch, model, pose_mean, pose_var
 
 def save_log(args, log_dict, train_loss, val_loss, epoch):
 
@@ -175,7 +176,7 @@ if __name__ == "__main__":
     # 5. resume model
     resumed_epoch = 1
     if(args.resume != ""):
-        resumed_epoch, model = resume_model(args, resumed_epoch, model)
+        resumed_epoch, model, _, _ = resume_model(args, resumed_epoch, model)
 
     log_dict = {'epoch': [], 'train_loss': [], 'val_loss': []}
     for epoch in range(1, args.nepochs + 1):
@@ -186,11 +187,14 @@ if __name__ == "__main__":
         train_loss = train(args, model, mse_loss, optimizer, scheduler, loader_train, epoch)
 
         # 7. validate
-        val_loss, val_ade = validate(args, model, mse_loss, dset_val, loader_val)
+        val_loss, val_ade = validate(args, model, mse_loss, dset_train.pose_mean, dset_train.pose_var, loader_val)
+
+        # print(dset_train.pose_mean)
+        # input("here")
 
         # 8. save model
         if(epoch % args.save_fre == 0):
-            save_model(args, model, epoch)
+            save_model(args, model, epoch, dset_train.pose_mean, dset_train.pose_var)
 
         # 9. logging
         save_log(args, log_dict, train_loss, val_loss, epoch)

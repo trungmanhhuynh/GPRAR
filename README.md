@@ -8,114 +8,48 @@
  give higher importance weights to human parts that are related to prediction tasks. 
 
 
-## Generate processed data
-
+## Generate processed data  
 Please read [PRE_PROCESS.MD](PRE_PROCESS.MD)
 
 
-## Generate train/val data
-
-#### Generate train/val data for reconstructor
-If use high-confident poses and large data size 
+## Reconstructor 
+#### Generate train/val data 
+We use high confident poses to train the reconstructor. The train/val data is generated
+using the following command:
 ```
-  python generate_data_reconstructor.py --hc_poses --d_size large
+  python reconstructor/generate_data.py --d_size large --hc_poses 
 ```
+The result files are `train_large_hcposes.joblib` and `val_large_hcposes.joblib` saved in `train_val_data/JAAD/reconstructor/`
 
-  To generate train/val data, run the following: 
+#### Train
 ```
-
+python reconstructor/train.py --train_data train_val_data/JAAD/reconstructor/train_large_hcposes.joblib --val_data train_val_data/JAAD/reconstructor/val_large_hcposes.joblib --add_noise
 ```
+By default, trained models are save at `save/reconstructor/model`
 
-  Please double check and make sure the processed data folder is as follows: 
-
+#### Test
+To valdiate on high-confident poses + random keypoint drop (same validation set as used in training)
 ```
-Traj-STGCNN
-└── train_val_data
-    └── JAAD
-        └── mini_size
-              └── train_data.joblib
-              └── val_data.joblib
-        └── medium_size
-              └── train_data.joblib
-              └── val_data.joblib
-        └── full_size
-              └── train_data.joblib
-              └── val_data.joblib  
+python reconstructor/test.py --resume save/reconstructor/model/model_epoch_50.pt --val_data train_val_data/JAAD/reconstructor/val_large_hcposes.joblib --add_noise
 ```
 
-
-
-## Train 
-
-1. Train Reconstructor 
-
+To valdidate on the save
 ```
-python train.py --mode reconstructor 
-```
-By default, trained models are save at `save/reconstructor`
-
-2. Train Predictor 
-
-The Reconstructor's weights are freezed during this training phase. 
-```
-python train.py --mode predictor --resume save/reconstructor/model/model_epoch_50.py
-```
-By default, trained models are save at `save/predictor`
-
-
-
-
-
-
-## Test
-
-Specify `args.test_data` and `args.test_data`, then run
-
-```
-python test.py --python test.py --resume path/to/checkpoint
-
+python reconstructor/test.py --resume save/reconstructor/model/model_epoch_50.pt --d_size large 
 ```
 
-
-
-## Pose Reconstructor 
-#### 1. Generate train/val data for reconstructor
+## Predictor
+#### 1. Generate train/val data
 ```
-python reconstructor/generate_train_val_data.py --data_size small
+python predictor/generate_data.py --d_size small
 ```
 
-#### 2. Train pose reconstuctor 
+#### Train
 ```
-python reconstructor/train.py --save_dir reconstructor/save/small
+python predictor/train.py --train_data 
 ```
 
-
-For modifying other parameters, please look into the script
-
-## Plan 
-1. Pre-processes the datasets (done)
-    + Extract sample from the dataset. Each sample includes these features
-        -- video name 
-        -- frame number
-        -- pid 
-        -- pose (using openpose) (x,y,c)
-        -- optical_flow
-        -- occludede ?
-
-2. Build the network  (in-progress)
-    + using st-gcn as decoder and encoder. 
-
-
-3. Compare the results with other methods. 
-    
-
-4. Ablation study
-
-
-## Comparisons
-1. LSTM 
-2. FPL (https://github.com/takumayagi/fpl)
-2. Social-STGCNN (adapted to dynamic scenes).
+#### Test
 
 
 ## Analysis

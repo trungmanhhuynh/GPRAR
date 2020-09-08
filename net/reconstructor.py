@@ -16,7 +16,7 @@ class Reconstructor(nn.Module):
     """
 
     def __init__(self,
-                 in_channels=3,   # [x,y,c]
+                 in_channels=2,   # [x,y,c]
                  out_channels=2,
                  obs_len=10,
                  pred_len=10,
@@ -35,7 +35,7 @@ class Reconstructor(nn.Module):
 
         # load graph
         self.graph = Graph(layout='openpose_25',
-                           strategy='spatial',
+                           strategy='distance',
                            max_hop=1,
                            dilation=1)
         A = torch.tensor(self.graph.A, dtype=torch.float32, requires_grad=False)    # A ~ (1,25,25)
@@ -44,9 +44,6 @@ class Reconstructor(nn.Module):
         # build networks
         spatial_kernel_size = A.size(0)
         temporal_kernel_size = 9
-        self.data_bn = nn.BatchNorm1d(self.in_channels * A.size(1))
-
-        self.dropout = nn.Dropout(p=0.5, inplace=True)
 
         self.st_gcn_networks = nn.ModuleList((
             st_gcn(self.in_channels, 32, (temporal_kernel_size, spatial_kernel_size), 1, residual=False),
@@ -79,9 +76,6 @@ class Reconstructor(nn.Module):
         # re-shape pose_in to shape (batch_size, in_channels, obs_len, num_keypoints)
         pose_in = pose_in.view(batch_size, self.obs_len, self.num_keypoints, self.in_channels)
         pose_in = pose_in.permute(0, 3, 1, 2).contiguous()   # (batch_size, in_channels, obs_len, num_keypoints)
-
-        # drop-out
-        # pose_in = self.dropout(pose_in)
 
         # re-construct missing keypoints.
         for gcn, importance in zip(self.st_gcn_networks, self.edge_importance):

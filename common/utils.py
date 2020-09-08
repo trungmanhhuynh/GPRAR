@@ -94,35 +94,66 @@ def save_traj(traj_dict, traj_pred, video_names, image_names, person_ids, mean, 
 
     return traj_dict
 
-def extract_parts(pose):
+def extract_parts(pose, pose_features):
 
-    # print(pose)
-    Nose = pose[0:2]
-    Neck = pose[3:5]
-    RShoulder = pose[6:8]
-    RElbow = pose[9:11]
-    RWrist = pose[12:14]
-    LShoulder = pose[15:17]
-    LElbow = pose[18:20]
-    LWrist = pose[21:23]
-    MidHip = pose[24:26]
-    RHip = pose[27:29]
-    RKnee = pose[30:32]
-    RAnkle = pose[33:35]
-    LHip = pose[36:38]
-    LKnee = pose[39:41]
-    LAnkle = pose[42:44]
-    REye = pose[45:47]
-    LEye = pose[48:50]
-    REar = pose[51:53]
-    LEar = pose[54:56]
-    LBigToe = pose[57:59]
-    LSmallToe = pose[60:62]
-    LHeel = pose[63:65]
-    RBigToe = pose[66:68]
-    RSmallToe = pose[69:71]
-    RHeel = pose[72:74]
-    # Background =   [pose['pose_keypoints_2d'][75], pose['pose_keypoints_2d'][76]]
+    if(pose_features == 3):
+        # print(pose)
+        Nose = pose[0:2]
+        Neck = pose[3:5]
+        RShoulder = pose[6:8]
+        RElbow = pose[9:11]
+        RWrist = pose[12:14]
+        LShoulder = pose[15:17]
+        LElbow = pose[18:20]
+        LWrist = pose[21:23]
+        MidHip = pose[24:26]
+        RHip = pose[27:29]
+        RKnee = pose[30:32]
+        RAnkle = pose[33:35]
+        LHip = pose[36:38]
+        LKnee = pose[39:41]
+        LAnkle = pose[42:44]
+        REye = pose[45:47]
+        LEye = pose[48:50]
+        REar = pose[51:53]
+        LEar = pose[54:56]
+        LBigToe = pose[57:59]
+        LSmallToe = pose[60:62]
+        LHeel = pose[63:65]
+        RBigToe = pose[66:68]
+        RSmallToe = pose[69:71]
+        RHeel = pose[72:74]
+        # Background =   [pose['pose_keypoints_2d'][75], pose['pose_keypoints_2d'][76]]
+
+    elif(pose_features == 2):
+        Nose = pose[0:2]
+        Neck = pose[2:4]
+        RShoulder = pose[4:6]
+        RElbow = pose[6:8]
+        RWrist = pose[8:10]
+        LShoulder = pose[10:12]
+        LElbow = pose[12:14]
+        LWrist = pose[14:16]
+        MidHip = pose[16:18]
+        RHip = pose[18:20]
+        RKnee = pose[20:22]
+        RAnkle = pose[22:24]
+        LHip = pose[24:26]
+        LKnee = pose[26:28]
+        LAnkle = pose[28:30]
+        REye = pose[30:32]
+        LEye = pose[32:34]
+        REar = pose[34:36]
+        LEar = pose[36:38]
+        LBigToe = pose[38:40]
+        LSmallToe = pose[40:42]
+        LHeel = pose[42:44]
+        RBigToe = pose[44:46]
+        RSmallToe = pose[46:48]
+        RHeel = pose[48:50]
+    else:
+        print("Pose features must be 2 or 3")
+        exit(-1)
 
     return Nose, Neck, RShoulder, RElbow, RWrist, LShoulder, LElbow, LWrist, MidHip, RHip, \
         RKnee, RAnkle, LHip, LKnee, LAnkle, REye, LEye, REar, LEar, LBigToe, \
@@ -139,7 +170,7 @@ def plot_pose(pose_keypoints_2d, person_id, ax, color):
 
     Nose, Neck, RShoulder, RElbow, RWrist, LShoulder, LElbow, LWrist, MidHip, RHip, \
         RKnee, RAnkle, LHip, LKnee, LAnkle, REye, LEye, REar, LEar, LBigToe, \
-        LSmallToe, LHeel, RSmallToe, RBigToe, RHeel = extract_parts(pose_keypoints_2d)
+        LSmallToe, LHeel, RSmallToe, RBigToe, RHeel = extract_parts(pose_keypoints_2d, pose_features=2)
 
     if is_zero(Nose) == False and is_zero(Neck) == False:
         ax.plot([Nose[0], Neck[0]], [Nose[1], Neck[1]], '-', linewidth=3, color=color)
@@ -227,14 +258,14 @@ def plot_pose_results(noisy_poses,
     """
 
     """
-    for i in range(1):
+    for i in range(10):
 
         # plot image
         # img = plt.imread(os.path.join(image_dir, video_names[i], image_names[i]))
         # ax[0].imshow(img)
         # ax[1].imshow(img)
 
-        for t in range(10):
+        for t in range(1):
 
             # plot pose
             fig, ax = plt.subplots(nrows=1, ncols=3)

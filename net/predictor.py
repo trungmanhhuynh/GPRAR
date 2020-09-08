@@ -61,7 +61,7 @@ class TCNN_POSE(nn.Module):
     def __init__(self, output_feats=2,
                  obs_len=10,
                  pred_len=10,
-                 pose_features=3,
+                 pose_features=2,
                  num_keypoints=25
                  ):
         super().__init__()
@@ -128,7 +128,7 @@ class Predictor(nn.Module):
     def __init__(self, output_feats=2,
                  obs_len=10,
                  pred_len=10,
-                 pose_features=3,
+                 pose_features=2,
                  num_keypoints=25
                  ):
         super().__init__()
@@ -145,7 +145,7 @@ class Predictor(nn.Module):
             output_feats=2,
             obs_len=10,
             pred_len=10,
-            pose_features=3,
+            pose_features=2,
             num_keypoints=25
         )
 
@@ -155,9 +155,7 @@ class Predictor(nn.Module):
             pred_len=10,
         )
 
-    def forward(self, pose_in):
-
-        traj_in = pose_in[:, :, 24:26]             # 8th keypoint for locations. size ~ (batch_size, obs_len, 2)
+    def forward(self, pose_in, traj_in):
 
         # prediction using pose + location
         y = self.tcnn_pose(pose_in, traj_in)
