@@ -41,7 +41,9 @@ def load_datasets(args):
         add_noise=args.add_noise,
         obs_len=args.obs_len,
         pred_len=args.pred_len,
-        flip=args.flip
+        flip=args.flip,
+        pose_mean=dset_train.pose_mean,
+        pose_var=dset_train.pose_var
     )
 
     loader_val = DataLoader(
@@ -100,7 +102,7 @@ def train(args, model, mse_loss, optimizer, scheduler, loader_train, epoch):
 
     return train_loss / len(loader_train)
 
-def validate(args, model, mse_loss, pose_mean, pose_var, loader_val):
+def validate(args, model, mse_loss, dset_val, loader_val):
 
     # 6.2 validate
     val_loss, val_ade = 0, 0
@@ -118,8 +120,8 @@ def validate(args, model, mse_loss, pose_mean, pose_var, loader_val):
         loss = mse_loss(pred_poses, poses_gt)
 
         # denormalize
-        poses_gt = std_denormalize(poses_gt.data.cpu(), pose_mean, pose_var)
-        pred_poses = std_denormalize(pred_poses.data.cpu(), pose_mean, pose_var)
+        poses_gt = std_denormalize(poses_gt.data.cpu(), dset_val.pose_mean, dset_val.pose_var)
+        pred_poses = std_denormalize(pred_poses.data.cpu(), dset_val.pose_mean, dset_val.pose_var)
         ade = calculate_pose_ade(pred_poses, poses_gt)
 
         val_ade += ade
@@ -128,9 +130,13 @@ def validate(args, model, mse_loss, pose_mean, pose_var, loader_val):
     return val_loss / len(loader_val), val_ade / len(loader_val)
 
 
-def save_model(args, model, epoch, pose_mean, pose_var):
+def save_model(args, model, epoch, pose_mean, pose_var, best_model=False):
 
-    model_file = os.path.join(args.save_model_dir, "model_epoch_{}.pt".format(epoch))
+    if(best_model):
+        model_file = os.path.join(args.save_model_dir, "model_best.pt")
+    else:
+        model_file = os.path.join(args.save_model_dir, "model_epoch_{}.pt".format(epoch))
+
     torch.save({'state_dict': model.state_dict(),
                 'epoch': epoch,
                 'pose_mean': pose_mean,
@@ -179,6 +185,7 @@ if __name__ == "__main__":
         resumed_epoch, model, _, _ = resume_model(args, resumed_epoch, model)
 
     log_dict = {'epoch': [], 'train_loss': [], 'val_loss': []}
+    best_epoch, best_val_ade, best_model = 0, 10000, None
     for epoch in range(1, args.nepochs + 1):
 
         start_time = time.time()
@@ -187,10 +194,12 @@ if __name__ == "__main__":
         train_loss = train(args, model, mse_loss, optimizer, scheduler, loader_train, epoch)
 
         # 7. validate
-        val_loss, val_ade = validate(args, model, mse_loss, dset_train.pose_mean, dset_train.pose_var, loader_val)
+        val_loss, val_ade = validate(args, model, mse_loss, dset_val, loader_val)
 
-        # print(dset_train.pose_mean)
-        # input("here")
+        if(val_ade < best_val_ade):
+            best_val_ade = val_ade
+            best_epoch = epoch
+            best_model = model
 
         # 8. save model
         if(epoch % args.save_fre == 0):
@@ -207,3 +216,8 @@ if __name__ == "__main__":
     print("Written log file to ", logfile)
     with open(logfile, 'w') as f:
         json.dump(log_dict, f)
+
+    # 11. Save best model
+    print("best_epoch:{} best_val_ade:{:.2f}".format(
+        best_epoch, best_val_ade))
+    save_model(args, best_model, best_epoch, dset_train.pose_mean, dset_train.pose_var, best_model=True)

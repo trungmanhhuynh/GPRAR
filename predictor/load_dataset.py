@@ -11,10 +11,16 @@ class TrajectoryDataset(Dataset):
                  generate_noisy_pose=False,
                  obs_len=10,
                  pred_len=10,
-                 pose_features=3,              # x, y, c
-                 num_keypoints=25,                 # using openpose 25 keypoints
+                 pose_features=2,                   # x, y, c
+                 num_keypoints=25,                  # using openpose 25 keypoints
                  flip=False,
-                 image_width=1280):
+                 image_width=1280,
+                 image_height=960,
+                 pose_mean=None,
+                 pose_var=None,
+                 loc_mean=None,
+                 loc_var=None
+                 ):
         """
         Args:
                 data_file: file name of train/val data. Data in data_file has the following structure:
@@ -38,7 +44,9 @@ class TrajectoryDataset(Dataset):
         self.pose_features = pose_features
         self.num_keypoints = num_keypoints
         self.image_width = image_width
+        self.image_height = image_height
         self.flip = flip
+
         self.xy_indexes = []
         for k in range(0, 25):
             self.xy_indexes.append(3 * k)
@@ -47,9 +55,37 @@ class TrajectoryDataset(Dataset):
         # read train/val from joblib file
         self.read_data(data_file)
 
-        # calculate mean/var
-        self.loc_mean, self.loc_var = calc_mean_variance(self.gt_locations)                          # location mean, var ~ [2]
-        self.pose_mean, self.pose_var = calc_mean_variance(self.poses)                               # pose mean, var ~ [75]
+        # calulate mean/var for pose features
+        if(pose_mean is None and pose_var is None):
+
+            # 1st method is to calculate mean/var using training dataset
+            self.pose_mean, self.pose_var = calc_mean_variance(self.poses)                               # pose mean, var ~ [75]
+
+            # 2nd method is to calculate mean/var using image width/height
+            self.pose_mean[0::2] = self.image_width / 2
+            self.pose_mean[1::2] = self.image_height / 2
+            self.pose_var[0::2] = self.image_width - self.image_width / 2
+            self.pose_var[1::2] = self.image_height - self.image_height / 2
+
+        else:
+            self.pose_mean = pose_mean
+            self.pose_var = pose_var
+
+        # calculate mean/var for location features
+        if(loc_mean is None and loc_mean is None):
+
+            # 1st method is to calculate mean/var using training dataset
+            self.loc_mean, self.loc_var = calc_mean_variance(self.gt_locations)                          # location mean, var ~ [2]
+
+            # 2nd method is to calculate mean/var using image width/height
+            # self.loc_mean[0] = self.image_width / 2
+            # self.loc_mean[1] = self.image_height / 2
+            # self.loc_var[0] = self.image_width - self.image_width / 2
+            # self.loc_var[1] = self.image_height - self.image_height / 2
+
+        else:
+            self.loc_mean = loc_mean
+            self.loc_var = loc_var
 
     def __len__(self):
         return self.num_samples

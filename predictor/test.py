@@ -18,13 +18,17 @@ from load_dataset import TrajectoryDataset
 from common.utils import calculate_ade_fde, save_traj
 from predictor.config import read_args_predictor
 
-def load_datasets(args):
+def load_datasets(args, pose_mean, pose_var, loc_mean, loc_var):
 
     dset_val = TrajectoryDataset(
         args.val_data,
         obs_len=args.obs_len,
         pred_len=args.pred_len,
-        flip=args.flip
+        flip=args.flip,
+        pose_mean=pose_mean,
+        pose_var=pose_var,
+        loc_mean=loc_mean,
+        loc_var=loc_var
     )
 
     loader_val = DataLoader(
@@ -91,7 +95,7 @@ def test(args, model, epoch, mse_loss, dset_val, loader_val):
     for key in traj_dict:
         traj_dict[key] = sum(traj_dict[key], [])           # size  == size of equal num_samples == len(loader_test)
 
-    traj_file = os.path.join(args.save_traj_dir, "trajs.json")
+    traj_file = os.path.join(args.save_dir, "trajs.json")
     print("Saving predicted trajs to file: ", traj_file)
     with open(traj_file, 'w') as f:
         json.dump(traj_dict, f)
@@ -103,8 +107,12 @@ def resume_model(args, resumed_epoch, model):
     resume_dict = torch.load(args.resume)
     model.load_state_dict(resume_dict['state_dict'])
     resumed_epoch = resume_dict['epoch']
+    pose_mean = resume_dict['pose_mean']
+    pose_var = resume_dict['pose_var']
+    loc_mean = resume_dict['loc_mean']
+    loc_var = resume_dict['loc_var']
 
-    return resumed_epoch, model
+    return resumed_epoch, model, pose_mean, pose_var, loc_mean, loc_var
 
 
 if __name__ == "__main__":
@@ -117,20 +125,19 @@ if __name__ == "__main__":
     torch.manual_seed(1)
     random.seed(1)
 
-    # 3. load dataset
-    dset_val, loader_val = load_datasets(args)
-    print("val datasize = {}".format(len(dset_val)))
-
     # 4. load model
     model, mse_loss, _, _ = load_model(args)
 
     # 5. resume model
     resumed_epoch = 1
     if(args.resume != ""):
-        resumed_epoch, model = resume_model(args, resumed_epoch, model)
+        resumed_epoch, model, pose_mean, pose_var, loc_mean, loc_var = resume_model(args, resumed_epoch, model)
+
+    # 3. load dataset
+    dset_val, loader_val = load_datasets(args, pose_mean, pose_var, loc_mean, loc_var)
+    print("val datasize = {}".format(len(dset_val)))
 
     start_time = time.time()
-
     # 6. validate
     val_loss, val_ade, val_fde = test(args, model, resumed_epoch, mse_loss, dset_val, loader_val)
 

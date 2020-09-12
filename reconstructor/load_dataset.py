@@ -17,7 +17,8 @@ class PoseDataset(Dataset):
                  flip=False,
                  pose_mean=None,
                  pose_var=None,
-                 image_width=1280):
+                 image_width=1280,
+                 image_height = 960):
         """
         Args:
                 data_file: file name of train/val data. Data in data_file has the following structure:
@@ -38,7 +39,7 @@ class PoseDataset(Dataset):
         self.pose_features = pose_features
         self.num_keypoints = num_keypoints
         self.image_width = image_width
-        self.image_height = 960
+        self.image_height = image_height
 
         self.add_noise = add_noise
         self.flip = flip
@@ -53,14 +54,14 @@ class PoseDataset(Dataset):
         # calculate mean/var
         if(pose_mean is None and pose_var is None):
             self.pose_mean, self.pose_var = calc_mean_variance(self.poses)                               # pose mean, var ~ [75]
+            self.pose_mean[0::2] = self.image_width / 2
+            self.pose_mean[1::2] = self.image_height / 2
+            self.pose_var[0::2] = self.image_width - self.image_width / 2
+            self.pose_var[1::2] = self.image_height - self.image_height / 2
+
         else:
             self.pose_mean = pose_mean
             self.pose_var = pose_var
-
-        self.pose_mean[0::2] = self.image_width / 2
-        self.pose_mean[1::2] = self.image_height / 2
-        self.pose_var[0::2] = self.image_width - self.image_width / 2
-        self.pose_var[1::2] = self.image_height - self.image_height / 2
 
         # print("pose_mean = ", self.pose_mean)
         # print("pose_var = ", self.pose_var)

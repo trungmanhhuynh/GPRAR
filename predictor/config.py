@@ -38,19 +38,17 @@ def read_args_predictor():
                         help='print out log every x interations')
     parser.add_argument('--save_fre', type=int, default=5,
                         help='save model every x epochs')
-    parser.add_argument('--save_model_dir', type=str, default='./save/predictor/model',
-                        help='save model dir')
-    parser.add_argument('--save_log_dir', type=str, default='./save/predictor/log',
-                        help='save log dir')
-    parser.add_argument('--save_traj_dir', type=str, default='./save/predictor',
-                        help='save log dir')
-
+    parser.add_argument('--save_dir', type=str, default='./save/predictor',
+                        help='save dir')
     parser.add_argument('--image_dir', type=str, default="/home/manhh/github/datasets/JAAD/images",
                         help='must be specified if plot_sample is true')
 
     args = parser.parse_args()
 
     # make dirs if not exists
+    args.save_model_dir = os.path.join(args.save_dir, "model")
+    args.save_log_dir = os.path.join(args.save_dir, "log")
+
     if not os.path.exists(args.save_model_dir):
         os.makedirs(args.save_model_dir)
     if not os.path.exists(args.save_log_dir):

@@ -38,7 +38,11 @@ def load_datasets(args):
         args.val_data,
         obs_len=args.obs_len,
         pred_len=args.pred_len,
-        flip=args.flip
+        flip=args.flip,
+        pose_mean=dset_train.pose_mean,
+        pose_var=dset_train.pose_var,
+        loc_mean=dset_train.loc_mean,
+        loc_var=dset_train.loc_var
     )
 
     loader_val = DataLoader(
@@ -127,10 +131,21 @@ def validate(args, model, mse_loss, dset_val, loader_val):
     return val_loss / len(loader_val), val_ade / len(loader_val), val_fde / len(loader_val)
 
 
-def save_model(args, model, epoch):
+def save_model(args, model, pose_mean, pose_var, loc_mean, loc_var, epoch, best_model=False):
 
-    model_file = os.path.join(args.save_model_dir, "model_epoch_{}.pt".format(epoch))
-    torch.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_file)
+    if(best_model):
+        model_file = os.path.join(args.save_model_dir, "model_best.pt")
+    else:
+        model_file = os.path.join(args.save_model_dir, "model_epoch_{}.pt".format(epoch))
+
+    torch.save({'state_dict': model.state_dict(),
+                'epoch': epoch,
+                'pose_mean': pose_mean,
+                'pose_var': pose_var,
+                'loc_mean': loc_mean,
+                'loc_var': loc_var
+                }, model_file)
+
     print("saved model to file:", model_file)
 
 
@@ -170,9 +185,10 @@ if __name__ == "__main__":
     # 5. resume model
     resumed_epoch = 1
     if(args.resume != ""):
-        resumed_epoch, model = resume_model(args, resumed_epoch, model)
+        _, model = resume_model(args, resumed_epoch, model)
 
     log_dict = {'epoch': [], 'train_loss': [], 'val_loss': []}
+    best_epoch, best_val_ade, best_val_fde, best_model = 0, 10000, 10000, None
     for epoch in range(1, args.nepochs + 1):
 
         start_time = time.time()
@@ -183,9 +199,15 @@ if __name__ == "__main__":
         # 7. validate
         val_loss, val_ade, val_fde = validate(args, model, mse_loss, dset_val, loader_val)
 
+        if(val_ade < best_val_ade):
+            best_val_ade = val_ade
+            best_val_fde = val_fde
+            best_epoch = epoch
+            best_model = model
+
         # 8. save model
         if(epoch % args.save_fre == 0):
-            save_model(args, model, epoch)
+            save_model(args, model, dset_train.pose_mean, dset_train.pose_var, dset_train.loc_mean, dset_train.loc_var, epoch)
 
         # 9. logging
         save_log(args, log_dict, train_loss, val_loss, epoch)
@@ -198,3 +220,9 @@ if __name__ == "__main__":
     print("Written log file to ", logfile)
     with open(logfile, 'w') as f:
         json.dump(log_dict, f)
+
+    # 11. Save best model
+    print("best_epoch:{} best_val_ade:{:.2f} best_val_fde:{:.2f}".format(
+        best_epoch, best_val_ade, best_val_fde))
+    save_model(args, best_model, dset_train.pose_mean,
+               dset_train.pose_var, dset_train.loc_mean, dset_train.loc_var, best_epoch, best_model=True)

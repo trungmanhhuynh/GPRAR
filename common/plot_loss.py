@@ -9,8 +9,10 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 
+from scipy import ndimage
 
-def plot_multiple_loss():
+
+def plot_multiple_train_loss():
     """
         plot train/validation loss
         save image to current directory.
@@ -18,29 +20,64 @@ def plot_multiple_loss():
 
     # log file is generarted by train a model,
     # specify LOG_FILE correctly - must be json file
-    #TCNN_LOG_FILE = "save/tcnn/small_size/log/log.json"
-    LOGFILE_1 = "save/model2/log/log.json"
-    LOGFILE_2 = "save/model4/prediction/log/log.json"
+    LOGFILE_1 = "save/predictor_loc/log/log.json"
+    LOGFILE_2 = "save/predictor_no_rc/log/log.json"
+    LOGFILE_3 = "save/predictor/log/log.json"
 
     LOG_FIGURE = "train_loss.png"
 
-    # with open(TCNN_LOG_FILE, "r") as f:
-    #     tcnn_data = json.load(f)
-
     with open(LOGFILE_1, "r") as f:
         data_1 = json.load(f)
-
     with open(LOGFILE_2, "r") as f:
         data_2 = json.load(f)
+    with open(LOGFILE_3, "r") as f:
+        data_3 = json.load(f)
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
 
-    #ax.plot(tcnn_data['epoch'], tcnn_data['train_loss'], 'r',  label='tcnn')
-    ax.plot(data_1['epoch'], 5 + np.log(data_1['train_loss']), 'b', label='model_2')
-    ax.plot(data_2['epoch'], 5 + np.log(data_2['train_loss']), 'k', label='model_3')
+    ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_1['train_loss']), 1), 'b', label='without reconstructor (location)')
+    ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_2['train_loss']), 1), 'k', label='without reconstructor (noisy pose + location)')
+    ax.plot(data_3['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_3['train_loss']), 1), 'r', label='with reconstructor (reconstructed pose + location)')
 
     # ax.plot(log_data['epoch'], log_data['val_loss'], 'b', label='validation')
     plt.title("train loss")
+    plt.xlabel("#epoch")
+    plt.ylabel("loss")
+    ax.legend()
+
+    fig.savefig(LOG_FIGURE)
+    plt.close()
+
+
+def plot_multiple_val_loss():
+    """
+        plot train/validation loss
+        save image to current directory.
+    """
+
+    # log file is generarted by train a model,
+    # specify LOG_FILE correctly - must be json file
+    LOGFILE_1 = "save/predictor_loc/log/log.json"
+    LOGFILE_2 = "save/predictor_no_rc/log/log.json"
+    LOGFILE_3 = "save/predictor/log/log.json"
+
+    LOG_FIGURE = "val_loss.png"
+
+    with open(LOGFILE_1, "r") as f:
+        data_1 = json.load(f)
+    with open(LOGFILE_2, "r") as f:
+        data_2 = json.load(f)
+    with open(LOGFILE_3, "r") as f:
+        data_3 = json.load(f)
+
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+
+    ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_1['val_loss']), 1), 'b', label='without reconstructor (location)')
+    ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_2['val_loss']), 1), 'k', label='without reconstructor (noisy pose + location)')
+    ax.plot(data_3['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_3['val_loss']), 1), 'r', label='with reconstructor (reconstructed pose + location)')
+
+    # ax.plot(log_data['epoch'], log_data['val_loss'], 'b', label='validation')
+    plt.title("val_loss")
     plt.xlabel("#epoch")
     plt.ylabel("loss")
     ax.legend()
@@ -109,5 +146,7 @@ def plot_1():
 if __name__ == '__main__':
 
     # plot_loss()
-    plot_multiple_loss()
     # plot_1()
+
+    plot_multiple_train_loss()
+    plot_multiple_val_loss()

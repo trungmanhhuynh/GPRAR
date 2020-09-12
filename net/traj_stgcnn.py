@@ -48,14 +48,14 @@ class Traj_STGCNN(nn.Module):
 
         elif (self.mode == "predictor"):
 
-            # pred_poses = self.reconstructor(pose_in)
+            # pose_in = self.reconstructor(pose_in)
 
             # # not update reconstructor's weight while predicting
             # for p in self.reconstructor.parameters():
             #     p.requires_grad = False
 
             # pose_in[missing_keypoints] = pred_poses[missing_keypoints]
-            traj_in = pose_in[:, :, 24:26]
+            traj_in = pose_in[:, :, 8 * 2:8 * 2 + 2].clone()
 
             # 8th keypoint for locations. size ~ (batch_size, obs_len, 2)
             # traj_in = obs_locations

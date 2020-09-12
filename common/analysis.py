@@ -5,6 +5,8 @@ import numpy as np
 import argparse
 
 import matplotlib.pyplot as plt
+from scipy import ndimage
+
 
 def calculate_ade_fde(traj_gt, traj_pred):
 
@@ -47,20 +49,20 @@ if __name__ == '__main__':
 
     parser.add_argument('--traj_file', type=str, default="",
                         help='load predicted trajectory from json file')
-    parser.add_argument('--test_data', type=str, default="train_val_data/JAAD/predictor/val_small.joblib",
+    parser.add_argument('--val_data', type=str, default="train_val_data/JAAD/predictor/val_small.joblib",
                         help='load test data consisting of ground truth trajectory')
 
     args = parser.parse_args()
 
-    # make sure that args.test_data is the one used to generate traj_file
+    # make sure that args.val_data is the one used to generate traj_file
     # this can be done by running "test.py"
     with open(args.traj_file, "r") as f:
         result_data = json.load(f)
 
     pred_traj = result_data['traj_pred']
 
-    # with open(args.test_data, "r") as f:
-    val_data = joblib.load(args.test_data)
+    # with open(args.val_data, "r") as f:
+    val_data = joblib.load(args.val_data)
 
     poses, locations, bboxes = [], [], []
     video_names, image_names, person_ids = [], [], []
