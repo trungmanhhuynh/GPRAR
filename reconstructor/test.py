@@ -88,15 +88,15 @@ def test(args, model, epoch, mse_loss, pose_mean, pose_var, loader_val):
         pred_poses[noisy_poses != 0] = noisy_poses[noisy_poses != 0]
 
         # plot pose results
-        plot_pose_results(noisy_poses=noisy_poses,
-                          poses_gt=poses_gt,
-                          pred_poses=pred_poses,
-                          epoch=epoch,
-                          video_names=video_names,
-                          image_names=image_names,
-                          image_dir=args.image_dir,
-                          pose_res_dir=args.pose_res_dir,
-                          obs_len=args.obs_len)
+        # plot_pose_results(noisy_poses=noisy_poses,
+        #                   poses_gt=poses_gt,
+        #                   pred_poses=pred_poses,
+        #                   epoch=epoch,
+        #                   video_names=video_names,
+        #                   image_names=image_names,
+        #                   image_dir=args.image_dir,
+        #                   pose_res_dir=args.pose_res_dir,
+        #                   obs_len=args.obs_len)
 
     return val_loss / len(loader_val), val_ade / len(loader_val)
 

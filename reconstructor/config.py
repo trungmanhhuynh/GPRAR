@@ -16,7 +16,7 @@ def read_args_constructor():
                         help="ctype of optimizer: 'rmsprop' 'adam'")
     parser.add_argument('--grad_clip', type=float, default=10.,
                         help='clip gradients to this magnitude')
-    parser.add_argument('--nepochs', type=int, default=50,
+    parser.add_argument('--nepochs', type=int, default=100,
                         help='number of epochs')
     parser.add_argument('--use_cuda', action='store_true', default=True,
                         help='use gpu')
@@ -40,7 +40,7 @@ def read_args_constructor():
     # debugging parameters
     parser.add_argument('--info_fre', type=int, default=10,
                         help='print out log every x interations')
-    parser.add_argument('--save_fre', type=int, default=5,
+    parser.add_argument('--save_fre', type=int, default=10,
                         help='save model every x epochs')
     parser.add_argument('--save_model_dir', type=str, default='./save/reconstructor/model',
                         help='save model directory')

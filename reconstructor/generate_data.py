@@ -81,16 +81,15 @@ def generate_samples(video_data, video_name, args):
             if(gap > traj_len):
                 continue
 
-            if(args.hc_poses):
-                # only select pose with high confident
-                exist_zero = False
-                for t in range(traj_len):
-                    for k in range(2, args.num_keypoints * 3, 3):
-                        if(poses[t][k] == 0):
-                            exist_zero = True
-                            break
-                if(exist_zero):
-                    continue
+            # only select pose with high confident
+            exist_zero = False
+            for t in range(traj_len):
+                for k in range(2, args.num_keypoints * 3, 3):
+                    if(poses[t][k] == 0):
+                        exist_zero = True
+                        break
+            if(exist_zero):
+                continue
 
             # add to sample list
             video_samples.append({
@@ -206,8 +205,7 @@ if __name__ == "__main__":
                         help='d_size: small, medium, large')
     parser.add_argument('--num_keypoints', type=int, default=25,
                         help='number of keypoints per pose')
-    parser.add_argument('--hc_poses', action='store_true', default=False,
-                        help='generate high confident poses')
+
     args = parser.parse_args()
 
     random.seed(1)
@@ -220,12 +218,8 @@ if __name__ == "__main__":
     if not os.path.exists(os.path.join(args.output_dir, "reconstructor")):
         os.makedirs(os.path.join(args.output_dir, "reconstructor"))
 
-    if(args.hc_poses):
-        train_data_file = os.path.join(args.output_dir, "reconstructor", "train_{}_hcposes.joblib".format(args.d_size))
-        val_data_file = os.path.join(args.output_dir, "reconstructor", "val_{}_hcposes.joblib".format(args.d_size))
-    else:
-        train_data_file = os.path.join(args.output_dir, "reconstructor", "train_{}.joblib".format(args.d_size))
-        val_data_file = os.path.join(args.output_dir, "reconstructor", "val_{}.joblib".format(args.d_size))
+    train_data_file = os.path.join(args.output_dir, "reconstructor", "train_{}.joblib".format(args.d_size))
+    val_data_file = os.path.join(args.output_dir, "reconstructor", "val_{}.joblib".format(args.d_size))
 
     joblib.dump(train_samples, train_data_file)
     joblib.dump(val_samples, val_data_file)

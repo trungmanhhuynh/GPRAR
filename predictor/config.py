@@ -15,7 +15,7 @@ def read_args_predictor():
                         help="ctype of optimizer: 'rmsprop' 'adam'")
     parser.add_argument('--grad_clip', type=float, default=10.,
                         help='clip gradients to this magnitude')
-    parser.add_argument('--nepochs', type=int, default=50,
+    parser.add_argument('--nepochs', type=int, default=100,
                         help='number of epochs')
     parser.add_argument('--use_cuda', action='store_true', default=True,
                         help='use gpu')
@@ -26,8 +26,6 @@ def read_args_predictor():
                         help='train  data')
     parser.add_argument('--val_data', type=str, default="train_val_data/JAAD/predictor/val_medium.joblib",
                         help='validation data')
-    parser.add_argument('--d_size', type=str, default="small",
-                        help='d_size: small, medium, large')
     parser.add_argument('--resume', type=str, default="",
                         help='resume a trained model?')
     parser.add_argument('--flip', action='store_true', default=False,
@@ -36,7 +34,7 @@ def read_args_predictor():
     # debugging parameters
     parser.add_argument('--info_fre', type=int, default=10,
                         help='print out log every x interations')
-    parser.add_argument('--save_fre', type=int, default=5,
+    parser.add_argument('--save_fre', type=int, default=10,
                         help='save model every x epochs')
     parser.add_argument('--save_dir', type=str, default='./save/predictor',
                         help='save dir')

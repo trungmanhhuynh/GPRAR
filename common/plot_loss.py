@@ -20,9 +20,10 @@ def plot_multiple_train_loss():
 
     # log file is generarted by train a model,
     # specify LOG_FILE correctly - must be json file
-    LOGFILE_1 = "save/predictor_loc/log/log.json"
-    LOGFILE_2 = "save/predictor_no_rc/log/log.json"
-    LOGFILE_3 = "save/predictor/log/log.json"
+    LOGFILE_1 = "save_temp/predictor/log/log.json"
+    LOGFILE_2 = "save_temp/predictor_pose/log/log.json"
+    LOGFILE_3 = "save_temp/predictor_flow/log/log.json"
+    LOGFILE_4 = "save_temp/predictor_pose_flow/log/log.json"
 
     LOG_FIGURE = "train_loss.png"
 
@@ -32,12 +33,16 @@ def plot_multiple_train_loss():
         data_2 = json.load(f)
     with open(LOGFILE_3, "r") as f:
         data_3 = json.load(f)
+    with open(LOGFILE_4, "r") as f:
+        data_4 = json.load(f)
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
 
-    ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_1['train_loss']), 1), 'b', label='without reconstructor (location)')
-    ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_2['train_loss']), 1), 'k', label='without reconstructor (noisy pose + location)')
-    ax.plot(data_3['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_3['train_loss']), 1), 'r', label='with reconstructor (reconstructed pose + location)')
+    ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(data_1['train_loss'], 1), 'b', label='loc ')
+    ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(data_2['train_loss'], 1), 'k', label='loc + pose')
+    #ax.plot(data_3['epoch'], ndimage.gaussian_filter1d(data_3['train_loss'], 1), 'r', label='loc + camera motion')
+    ax.plot(data_4['epoch'], ndimage.gaussian_filter1d(data_4['train_loss'], 1), 'g', label='loc + camera motion + pose')
+    ax.set_ylim([0, 0.05])
 
     # ax.plot(log_data['epoch'], log_data['val_loss'], 'b', label='validation')
     plt.title("train loss")
@@ -57,9 +62,10 @@ def plot_multiple_val_loss():
 
     # log file is generarted by train a model,
     # specify LOG_FILE correctly - must be json file
-    LOGFILE_1 = "save/predictor_loc/log/log.json"
-    LOGFILE_2 = "save/predictor_no_rc/log/log.json"
-    LOGFILE_3 = "save/predictor/log/log.json"
+    LOGFILE_1 = "save_temp/predictor/log/log.json"
+    LOGFILE_2 = "save_temp/predictor_pose/log/log.json"
+    LOGFILE_3 = "save_temp/predictor_flow/log/log.json"
+    LOGFILE_4 = "save_temp/predictor_pose_flow/log/log.json"
 
     LOG_FIGURE = "val_loss.png"
 
@@ -69,12 +75,20 @@ def plot_multiple_val_loss():
         data_2 = json.load(f)
     with open(LOGFILE_3, "r") as f:
         data_3 = json.load(f)
+    with open(LOGFILE_4, "r") as f:
+        data_4 = json.load(f)
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
 
-    ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_1['val_loss']), 1), 'b', label='without reconstructor (location)')
-    ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_2['val_loss']), 1), 'k', label='without reconstructor (noisy pose + location)')
-    ax.plot(data_3['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_3['val_loss']), 1), 'r', label='with reconstructor (reconstructed pose + location)')
+    # ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_1['val_loss']), 3), 'b', label='loc + pose')
+    # ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_2['val_loss']), 3), 'k', label='loc + pose + camera motion')
+    # ax.plot(data_3['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_3['val_loss']), 3), 'r', label='loc + reconstructed_pose + camera motion')
+
+    ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(data_1['val_loss'], 1), 'b', label='loc ')
+    ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(data_2['val_loss'], 1), 'k', label='loc + pose')
+    #ax.plot(data_3['epoch'], ndimage.gaussian_filter1d(data_3['val_loss'], 1), 'r', label='loc + camera motion')
+    ax.plot(data_4['epoch'], ndimage.gaussian_filter1d(data_4['val_loss'], 1), 'g', label='loc + camera motion + pose')
+    ax.set_ylim([0, 0.05])
 
     # ax.plot(log_data['epoch'], log_data['val_loss'], 'b', label='validation')
     plt.title("val_loss")
@@ -103,7 +117,7 @@ def plot_loss():
     fig, ax = plt.subplots(nrows=1, ncols=1)
 
     ax.plot(log_data['epoch'], log(log_data['train_loss']), 'r', label='train')
-    #ax.plot(log_data['epoch'], log_data['val_loss'], 'b', label='validation')
+    # ax.plot(log_data['epoch'], log_data['val_loss'], 'b', label='validation')
     plt.xlabel("#epoch")
     plt.ylabel("loss")
     ax.legend()

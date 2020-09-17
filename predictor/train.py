@@ -8,6 +8,7 @@ import json
 import torch
 import random
 import numpy as np
+import copy
 from torch import optim
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
@@ -23,10 +24,7 @@ def load_datasets(args):
     # 1.prepare data
     dset_train = TrajectoryDataset(
         args.train_data,
-        obs_len=args.obs_len,
-        pred_len=args.pred_len,
-        flip=args.flip
-    )
+        args)
 
     loader_train = DataLoader(
         dset_train,
@@ -36,14 +34,9 @@ def load_datasets(args):
 
     dset_val = TrajectoryDataset(
         args.val_data,
-        obs_len=args.obs_len,
-        pred_len=args.pred_len,
-        flip=args.flip,
-        pose_mean=dset_train.pose_mean,
-        pose_var=dset_train.pose_var,
-        loc_mean=dset_train.loc_mean,
-        loc_var=dset_train.loc_var
-    )
+        args,
+        mean=dset_train.mean,
+        var=dset_train.var)
 
     loader_val = DataLoader(
         dset_val,
@@ -77,15 +70,19 @@ def train(args, model, mse_loss, optimizer, scheduler, loader_train, epoch):
 
         poses = Variable(samples['poses'])                               # pose ~ [batch_size, pose_features, obs_len, keypoints, instances]
         gt_locations = Variable(samples['gt_locations'])                 # gt_locations ~ [batch_size, pred_len, 2]
-        missing_keypoints = samples['missing_keypoints']
         obs_locations = Variable(samples['obs_locations'])
+        missing_keypoints = samples['missing_keypoints']
+        flow = Variable(samples['flow'])
 
         if(args.use_cuda):
             poses, gt_locations = poses.cuda(), gt_locations.cuda()
             obs_locations = obs_locations.cuda()
+            flow = flow.cuda()
+            missing_keypoints = missing_keypoints.cuda()
+
         # forward
         optimizer.zero_grad()
-        pred_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
+        pred_locations = model(pose_in=poses, flow_in=flow, missing_keypoints=missing_keypoints)                                      # output ~ [batch_size, pred_len, 2]
         loss = mse_loss(pred_locations, gt_locations)
         train_loss += loss.item()
 
@@ -113,13 +110,16 @@ def validate(args, model, mse_loss, dset_val, loader_val):
         gt_locations = Variable(samples['gt_locations'])          # gt_locations ~ (batch_size, pred_len, 2)
         missing_keypoints = samples['missing_keypoints']
         obs_locations = Variable(samples['obs_locations'])
+        flow = Variable(samples['flow'])
 
         if(args.use_cuda):
             poses, gt_locations = poses.cuda(), gt_locations.cuda()
             obs_locations = obs_locations.cuda()
+            flow = flow.cuda()
+            missing_keypoints = missing_keypoints.cuda()
 
         # forward
-        pred_locations = model(poses)                                      # output ~ [batch_size, pred_len, 2]
+        pred_locations = model(pose_in=poses, flow_in=flow, missing_keypoints=missing_keypoints)                                      # output ~ [batch_size, pred_len, 2]
         loss = mse_loss(pred_locations, gt_locations)
         val_loss += loss.item()
 
@@ -131,7 +131,7 @@ def validate(args, model, mse_loss, dset_val, loader_val):
     return val_loss / len(loader_val), val_ade / len(loader_val), val_fde / len(loader_val)
 
 
-def save_model(args, model, pose_mean, pose_var, loc_mean, loc_var, epoch, best_model=False):
+def save_model(args, model, mean, var, epoch, best_model=False):
 
     if(best_model):
         model_file = os.path.join(args.save_model_dir, "model_best.pt")
@@ -140,10 +140,8 @@ def save_model(args, model, pose_mean, pose_var, loc_mean, loc_var, epoch, best_
 
     torch.save({'state_dict': model.state_dict(),
                 'epoch': epoch,
-                'pose_mean': pose_mean,
-                'pose_var': pose_var,
-                'loc_mean': loc_mean,
-                'loc_var': loc_var
+                'mean': mean,
+                'var': var,
                 }, model_file)
 
     print("saved model to file:", model_file)
@@ -188,7 +186,7 @@ if __name__ == "__main__":
         _, model = resume_model(args, resumed_epoch, model)
 
     log_dict = {'epoch': [], 'train_loss': [], 'val_loss': []}
-    best_epoch, best_val_ade, best_val_fde, best_model = 0, 10000, 10000, None
+    best_epoch, best_val_ade, best_val_fde = 0, 10000, 10000
     for epoch in range(1, args.nepochs + 1):
 
         start_time = time.time()
@@ -199,30 +197,25 @@ if __name__ == "__main__":
         # 7. validate
         val_loss, val_ade, val_fde = validate(args, model, mse_loss, dset_val, loader_val)
 
+        # Save best model
         if(val_ade < best_val_ade):
-            best_val_ade = val_ade
-            best_val_fde = val_fde
-            best_epoch = epoch
-            best_model = model
+            best_val_ade, best_val_fde, best_epoch = val_ade, val_fde, epoch
+            save_model(args, model, dset_train.mean, dset_train.var, best_epoch, best_model=True)
 
-        # 8. save model
+        # 8. save model after args.save_fre
         if(epoch % args.save_fre == 0):
-            save_model(args, model, dset_train.pose_mean, dset_train.pose_var, dset_train.loc_mean, dset_train.loc_var, epoch)
+            save_model(args, model, dset_train.mean, dset_train.var, epoch)
 
         # 9. logging
         save_log(args, log_dict, train_loss, val_loss, epoch)
 
         print("epoch:{} lr:{} train_loss:{:.5f} val_loss:{:.5f} val_ade:{:.2f} val_fde:{:.2f} time(ms):{:.2f}".format(
             epoch, scheduler.get_lr(), train_loss, val_loss, val_ade, val_fde, (time.time() - start_time) * 1000))
+        print("best_epoch:{} best_val_ade:{:.2f} best_val_fde:{:.2f}".format(
+            best_epoch, best_val_ade, best_val_fde))
 
     # 10. save log file
     logfile = os.path.join(args.save_log_dir, "log.json")
     print("Written log file to ", logfile)
     with open(logfile, 'w') as f:
         json.dump(log_dict, f)
-
-    # 11. Save best model
-    print("best_epoch:{} best_val_ade:{:.2f} best_val_fde:{:.2f}".format(
-        best_epoch, best_val_ade, best_val_fde))
-    save_model(args, best_model, dset_train.pose_mean,
-               dset_train.pose_var, dset_train.loc_mean, dset_train.loc_var, best_epoch, best_model=True)

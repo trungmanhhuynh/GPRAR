@@ -9,57 +9,55 @@
 
 
 ## Generate processed data  
-Please read [PRE_PROCESS.MD](PRE_PROCESS.MD)
+Please read [PRE_PROCESS.md](PRE_PROCESS.md)
 
 
 ## Reconstructor 
 #### Generate train/val data 
-We use high confident poses to train the reconstructor. The train/val data is generated
-using the following command:
+Generate confident poses:
 ```
-  python reconstructor/generate_data.py --d_size large --hc_poses 
+$ python reconstructor/generate_data.py --d_size large
 ```
-The result files are `train_large_hcposes.joblib` and `val_large_hcposes.joblib` saved in `train_val_data/JAAD/reconstructor/`
+By default, The script generates `train_val_data/JAAD/reconstructor/train_$d_size.joblib` and `train_val_data/JAAD/reconstructor/val_$d_size.joblib`
 
 #### Train
 ```
-python reconstructor/train.py --train_data train_val_data/JAAD/reconstructor/train_large_hcposes.joblib --val_data train_val_data/JAAD/reconstructor/val_large_hcposes.joblib --add_noise
+python reconstructor/train.py --train_data train_val_data/JAAD/reconstructor/train_large.joblib --val_data train_val_data/JAAD/reconstructor/val_large.joblib --add_noise
 ```
 By default, trained models are save at `save/reconstructor/model`
 
 #### Test
 To valdiate on high-confident poses + random keypoint drop (same validation set as used in training)
 ```
-python reconstructor/test.py --resume save/reconstructor/model/model_epoch_50.pt --val_data train_val_data/JAAD/reconstructor/val_large_hcposes.joblib --add_noise
+python reconstructor/test.py --resume save/reconstructor/model/model_best.pt --val_data train_val_data/JAAD/reconstructor/val_large_hcposes.joblib --add_noise
 ```
 
 To valdidate on the save
 ```
-python reconstructor/test.py --resume save/reconstructor/model/model_epoch_50.pt --d_size large 
+python reconstructor/test.py --resume save/reconstructor/model/model_best.pt 
 ```
 
 ## Predictor
-#### 1. Generate train/val data
+#### Generate train/val data
 ```
 python predictor/generate_data.py --d_size small
 ```
-
-#### Train
+#### Train without using reconstructor
 ```
-python predictor/train.py --train_data 
+$ python predictor/train.py --train_data train_val_data/JAAD/predictor/train_medium.joblib --val_data train_val_data/JAAD/predictor/val_medium.joblib --save_dir save_temp/predictor_medium_withflow_norc
 ```
 
+#### Train using reconstructor
+```
+python predictor/train.py --train_data train_val_data/JAAD/predictor/train_medium.joblib --val_data train_val_data/JAAD/predictor/val_medium.joblib --save_dir save_temp/predictor_medium_withflow_withrc --resume save/reconstructor/model/model_best.pt
+```
 #### Test
-
 
 ## Analysis
 
-``
+```
 python utils/analysis.py --traj_file save/trajs.json --test_data train_val_data/JAAD/mini_size/val_data.joblib
 ```
-
-
-
 
 
 

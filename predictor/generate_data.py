@@ -53,6 +53,7 @@ def generate_samples(video_data, video_name, args):
         long_video_names = []
         long_image_names = []
         long_person_ids = []
+        long_flow = []
 
         for image_name in video_data:
             for person in video_data[image_name]["people"]:
@@ -62,14 +63,16 @@ def generate_samples(video_data, video_name, args):
                     long_person_ids.append(pid)
                     long_poses.append(person['pose'])
                     long_locations.append(person['center'])
+                    long_flow.append(person['flow'])
 
         # cut trajectories into chunk of pre-defined trajectory length
-        for video_names, image_names, person_ids, poses, locations in \
+        for video_names, image_names, person_ids, poses, locations, flow in \
             zip(chunks(long_video_names, traj_len=traj_len, slide=1),
                 chunks(long_image_names, traj_len=traj_len, slide=1),
                 chunks(long_person_ids, traj_len=traj_len, slide=1),
                 chunks(long_poses, traj_len=traj_len, slide=1),
-                chunks(long_locations, traj_len=traj_len, slide=1)):
+                chunks(long_locations, traj_len=traj_len, slide=1),
+                chunks(long_flow, traj_len=traj_len, slide=1)):
 
             # skip if extracted trajectory is shorted thatn pre-defined one
             if(len(locations) < traj_len):
@@ -87,7 +90,8 @@ def generate_samples(video_data, video_name, args):
                 'gt_locations': locations,
                 'video_names': video_names,
                 'image_names': image_names,
-                'person_ids': person_ids
+                'person_ids': person_ids,
+                'flow': flow
             })
 
     return video_samples, len(video_samples), num_nonvalid
@@ -130,12 +134,14 @@ def generate_train_val_data(args):
         print("processing video: ", video_name)
         video_data = {}
 
-        for frame_number in range(len(os.listdir(os.path.join(args.pose_dir, video_name)))):
+        for frame_number in range(len(os.listdir(os.path.join(args.pose_dir, video_name))) - 1):
 
             with open(os.path.join(args.pose_dir, video_name, "{:05d}_keypoints.json".format(frame_number)), "r") as f:
                 pose_data = json.load(f)
             with open(os.path.join(args.location_dir, video_name, "{:05d}_locations.json".format(frame_number)), "r") as f:
                 location_data = json.load(f)
+            with open(os.path.join(args.flow_dir, video_name, "{:05d}_gridflow.json".format(frame_number)), "r") as f:
+                flow_data = json.load(f)
 
             image_name = "{:05d}.png".format(frame_number)
             video_data[image_name] = {}
@@ -145,15 +151,17 @@ def generate_train_val_data(args):
                 if(ped['person_id'][0] == -1):
                     continue
 
-                temp = {}
-                temp['person_id'] = ped['person_id']
-                temp['pose'] = ped['pose_keypoints_2d']
+                person = {}
+                person['person_id'] = ped['person_id']
+                person['pose'] = ped['pose_keypoints_2d']
+                person['flow'] = flow_data[str(int(frame_number))]
+
                 for p_in_loc in location_data['people']:
                     if(ped['person_id'] == p_in_loc['person_id']):
-                        temp['bbox'] = p_in_loc['bbox']
-                        temp['center'] = p_in_loc['center']
+                        person['bbox'] = p_in_loc['bbox']
+                        person['center'] = p_in_loc['center']
 
-                video_data[image_name]['people'].append(temp)
+                video_data[image_name]['people'].append(person)
 
         # extract samples in a video
         video_samples, num_samples, num_nonvalid = generate_samples(video_data, video_name, args)
@@ -189,6 +197,8 @@ if __name__ == "__main__":
                         help='directory of processed location feature')
     parser.add_argument('--pose_dir', type=str, default="/home/manhh/github/Traj-STGCNN/processed_data/JAAD/pose_id",
                         help='directory of processed pose feature')
+    parser.add_argument('--flow_dir', type=str, default="/home/manhh/github/Traj-STGCNN/processed_data/JAAD/gridflow",
+                        help='directory of processed flow feature')
     parser.add_argument('--output_dir', type=str, default="/home/manhh/github/Traj-STGCNN/train_val_data/JAAD",
                         help='directory of output data')
     parser.add_argument('--d_size', type=str, default="small",

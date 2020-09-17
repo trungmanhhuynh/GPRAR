@@ -21,24 +21,6 @@ def calculate_ade_fde(traj_gt, traj_pred):
 
     return ade, fde
 
-
-def calc_percent_occlusion(pose, keypoints=25, feature=3):
-
-    # pose shape (args.obs_len, keypoints*3)
-
-    args.obs_len, points = pose.shape     # points = keypoints*3
-    pose = pose.reshape((args.obs_len, keypoints, feature))
-    n_missing_pts = 0
-
-    missing_kpt_counts = [0] * keypoints
-    for t in range(args.obs_len):
-        for k in range(keypoints):
-            if(pose[t][k][0] == 0 and pose[t][k][1] == 0):
-                n_missing_pts += 1
-                missing_kpt_counts[k] += 1
-
-    return missing_kpt_counts, n_missing_pts / (keypoints * args.obs_len)
-
 def read_val_data(args):
 
     # with open(args.val_data, "r") as f:
@@ -102,8 +84,8 @@ def visualize_trajs(args, observed_pose, pred_traj, gt_locations, video_names, i
     num_samples = observed_pose.shape[0]
     for i in range(num_samples):
 
-        # only plot sample that ade < 40
-        if(ade_per_sample[i] < 40):
+        # only plot sample that ade >= 40
+        if(ade_per_sample[i] < 20):
             continue
 
         print("Processing sample:{}, video_name:{}, image_name:{}".format(i, video_names[i], image_names[i]))
@@ -155,7 +137,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # read trajectory result data
-    args.traj_file = 'save_temp/predictor_pose/trajs.json'
     with open(args.traj_file, "r") as f:
         result_data = json.load(f)
     pred_traj = result_data['traj_pred']
@@ -167,69 +148,10 @@ if __name__ == '__main__':
     assert num_samples == len(video_names)
     print("Number of samples :", num_samples)
 
-    #
-    print("processing..")
+    # calculate ade for each sample
     num_keypoints_per_sample, ade_per_sample, sort_index = calc_ade_per_keypoint(args, observed_pose, pred_traj, gt_locations, video_names, image_names)
-
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    # ax.plot(num_keypoints_per_sample[sort_index], ade_per_sample[sort_index], alpha=0.3, color='b', linewidth=2.0)
-    # ax.plot(num_keypoints_per_sample[sort_index], ndimage.gaussian_filter1d(ade_per_sample[sort_index], 10), color='b', linewidth=2.0, label='loc + noisy pose')
-
-    # -----------------------------
-    # ----------------------------
-    args.traj_file = 'save_temp/predictor_pose_flow/trajs.json'
-    # read trajectory result data
-    with open(args.traj_file, "r") as f:
-        result_data = json.load(f)
-    pred_traj = result_data['traj_pred']
-    pred_traj = np.asarray(pred_traj)
-    num_samples = pred_traj.shape[0]
-
-    # read validation data for ground truth
-    poses, observed_pose, gt_locations, video_names, image_names = read_val_data(args)
-    assert num_samples == len(video_names)
-    print("Number of samples :", num_samples)
-
-    #
-    print("processing..")
-    num_keypoints_per_sample, ade_per_sample, sort_index = calc_ade_per_keypoint(args, observed_pose, pred_traj, gt_locations, video_names, image_names)
-
-    # ax.plot(num_keypoints_per_sample[sort_index], ade_per_sample[sort_index], alpha=0.3, color='r', linewidth=2.0)
-    # ax.plot(num_keypoints_per_sample[sort_index], ndimage.gaussian_filter1d(ade_per_sample[sort_index], 10), color='r', linewidth=2.0, label='loc + noisy pose + camera motion')
-
-    # -----------------------------
-    # ----------------------------
-    args.traj_file = 'save_temp/predictor_flow/trajs.json'
-    # read trajectory result data
-    with open(args.traj_file, "r") as f:
-        result_data = json.load(f)
-    pred_traj = result_data['traj_pred']
-    pred_traj = np.asarray(pred_traj)
-    num_samples = pred_traj.shape[0]
-
-    # read validation data for ground truth
-    poses, observed_pose, gt_locations, video_names, image_names = read_val_data(args)
-    assert num_samples == len(video_names)
-    print("Number of samples :", num_samples)
-
-    #
-    print("processing..")
-    num_keypoints_per_sample, ade_per_sample, sort_index = calc_ade_per_keypoint(args, observed_pose, pred_traj, gt_locations, video_names, image_names)
-
-    ax.plot(num_keypoints_per_sample[sort_index], ade_per_sample[sort_index], alpha=0.3, color='g', linewidth=2.0, label='ade')
-    ax.plot(num_keypoints_per_sample[sort_index], ndimage.gaussian_filter1d(ade_per_sample[sort_index], 10), color='g', linewidth=2.0, label='loc + flow')
-
-    plt.xlabel('ith sample (sorted by number of visible keypoints)')
-    plt.ylabel('ade (pixels)')
-    ax.set_ylim(0, 100)
-    ax.legend()
-    fig.savefig("predictor_pose.png")
-    plt.close()
-    ax.set_title('loc + reconstructed pose + camera motion')
-
-    print("plotted a graph: predictor_pose.png")
 
     # plot trajectories
-    # visualize_trajs(args, observed_pose, pred_traj, gt_locations, video_names, image_names,
-    #                 num_keypoints_per_sample, ade_per_sample,
-    #                 plot_pose=False)
+    visualize_trajs(args, observed_pose, pred_traj, gt_locations, video_names, image_names,
+                    num_keypoints_per_sample, ade_per_sample,
+                    plot_pose=False)

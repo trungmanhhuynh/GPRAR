@@ -199,7 +199,7 @@ if __name__ == "__main__":
         if(val_ade < best_val_ade):
             best_val_ade = val_ade
             best_epoch = epoch
-            best_model = model
+            save_model(args, model, best_epoch, dset_train.pose_mean, dset_train.pose_var, best_model=True)
 
         # 8. save model
         if(epoch % args.save_fre == 0):
@@ -210,14 +210,11 @@ if __name__ == "__main__":
 
         print("epoch:{} lr:{} train_loss:{:.5f} val_loss:{:.5f} val_ade:{:.2f} time(ms):{:.2f}".format(
             epoch, scheduler.get_lr(), train_loss, val_loss, val_ade, (time.time() - start_time) * 1000))
+        print("best_epoch:{} best_val_ade:{:.2f} ".format(
+            best_epoch, best_val_ade))
 
     # 10. save log file
     logfile = os.path.join(args.save_log_dir, "log.json")
     print("Written log file to ", logfile)
     with open(logfile, 'w') as f:
         json.dump(log_dict, f)
-
-    # 11. Save best model
-    print("best_epoch:{} best_val_ade:{:.2f}".format(
-        best_epoch, best_val_ade))
-    save_model(args, best_model, best_epoch, dset_train.pose_mean, dset_train.pose_var, best_model=True)

@@ -18,10 +18,10 @@ from sklearn.impute import KNNImputer
 # parameters
 PROCESSED_LOCATION_DIR = "/home/manhh/github/Traj-STGCNN/processed_data/JAAD/location"
 PROCESSED_POSE_ID_DIR = "/home/manhh/github/Traj-STGCNN/processed_data/JAAD/pose_id"
-TRAIN_VAL_DIR = "/home/manhh/github/Traj-STGCNN/data/JAAD"
-DATA_SIZE = "small"			# use `full_size` or `mini_size`
+PROCESSED_GRIDFLOW_ID_DIR = "/home/manhh/github/Traj-STGCNN/processed_data/JAAD/gridflow"
+TRAIN_VAL_DIR = "/home/manhh/github/Traj-STGCNN/train_val_data/JAAD/predictor"
+DATA_SIZE = "small"
 NUM_KEYPOINTS = 75
-FULL_POSE = False 				# only extract poses that all keypoints are present
 
 random.seed(1)
 
@@ -48,7 +48,7 @@ def impute_poses(poses):
     imputed_poses_array = np.array(imputed_poses)
 
     if(imputed_poses_array.shape[1] != NUM_KEYPOINTS):
-        valid_sample = False			# return -1 if shape is not right
+        valid_sample = False            # return -1 if shape is not right
 
     return imputed_poses, valid_sample
 
@@ -90,6 +90,7 @@ def generate_samples(video_data, video_name, traj_len=20):
         long_poses = []
         long_locations = []
         long_bboxes = []
+        long_gridflow = []
 
         for image_name in video_data:
             for person in video_data[image_name]["people"]:
@@ -100,6 +101,7 @@ def generate_samples(video_data, video_name, traj_len=20):
                     long_poses.append(person['pose'])
                     long_locations.append(person['center'])
                     long_bboxes.append(person['bbox'])
+                    long_gridflow.append(person['gridflow'])
 
         # interpolate poses
         long_imputed_pose, valid_sample = impute_poses(long_poses)
@@ -108,14 +110,16 @@ def generate_samples(video_data, video_name, traj_len=20):
             continue
 
         # cut trajectories into chunk of pre-defined trajectory length
-        for video_names, image_names, person_ids, poses, imputed_poses, locations, bboxes in \
+        for video_names, image_names, person_ids, poses, imputed_poses, locations, bboxes, gridflow in \
             zip(chunks(long_video_names, traj_len=traj_len, slide=1),
                 chunks(long_image_names, traj_len=traj_len, slide=1),
                 chunks(long_person_ids, traj_len=traj_len, slide=1),
                 chunks(long_poses, traj_len=traj_len, slide=1),
                 chunks(long_imputed_pose, traj_len=traj_len, slide=1),
                 chunks(long_locations, traj_len=traj_len, slide=1),
-                chunks(long_bboxes, traj_len=traj_len, slide=1)):
+                chunks(long_bboxes, traj_len=traj_len, slide=1),
+                chunks(long_gridflow, traj_len=traj_len, slide=1),
+                ):
 
             # skip if extracted trajectory is shorted thatn pre-defined one
             if(len(locations) < traj_len):
@@ -135,7 +139,8 @@ def generate_samples(video_data, video_name, traj_len=20):
                 'poses': poses,
                 'imputed_poses': imputed_poses,
                 'locations': locations,
-                'bboxes': bboxes
+                'bboxes': bboxes,
+                'gridflow': gridflow
             })
 
             # print(video_samples)
@@ -155,7 +160,7 @@ def generate_train_val_data(DATA_SIZE):
     elif(DATA_SIZE == "medium"):
         num_videos = random.sample(os.listdir(video_dir), k=50)
     elif(DATA_SIZE == "large"):
-        num_videos = os.listdir(video_dir)    						    # use all videos
+        num_videos = os.listdir(video_dir)                              # use all videos
     else:
         print("Please specify DATA_SIZE: small, medium, large")
         exit(-1)
@@ -176,20 +181,24 @@ def generate_train_val_data(DATA_SIZE):
                                 'pose'  : [1x75]  // [x,y,c] x 3
                                 }
                         ]
-                }	
+                }   
 
         '''
 
         print("processing video: ", video_name)
         video_data = {}
 
-        for frame_number in range(len(os.listdir(os.path.join(PROCESSED_POSE_ID_DIR, video_name)))):
+        for frame_number in range(len(os.listdir(os.path.join(PROCESSED_POSE_ID_DIR, video_name))) - 1):
+            # -1 because there is no gridflow data for the last frame
 
             with open(os.path.join(PROCESSED_POSE_ID_DIR, video_name, "{:05d}_keypoints.json".format(frame_number)), "r") as f:
                 pose_data = json.load(f)
 
             with open(os.path.join(PROCESSED_LOCATION_DIR, video_name, "{:05d}_locations.json".format(frame_number)), "r") as f:
                 location_data = json.load(f)
+
+            with open(os.path.join(PROCESSED_GRIDFLOW_ID_DIR, video_name, "{:05d}_gridflow.json".format(frame_number)), "r") as f:
+                gridflow_data = json.load(f)
 
             image_name = "{:05d}.png".format(frame_number)
             video_data[image_name] = {}
@@ -200,17 +209,18 @@ def generate_train_val_data(DATA_SIZE):
                 if(ped['person_id'][0] == -1):
                     continue
 
-                temp = {}
-                temp['person_id'] = ped['person_id']
-                temp['pose'] = ped['pose_keypoints_2d']
+                person = {}
+                person['person_id'] = ped['person_id']
+                person['pose'] = ped['pose_keypoints_2d']
+                person['gridflow'] = gridflow_data[str(int(frame_number))]
 
                 for p_in_loc in location_data['people']:
                     if(ped['person_id'] == p_in_loc['person_id']):
 
-                        temp['bbox'] = p_in_loc['bbox']
-                        temp['center'] = p_in_loc['center']
+                        person['bbox'] = p_in_loc['bbox']
+                        person['center'] = p_in_loc['center']
 
-                video_data[image_name]['people'].append(temp)
+                video_data[image_name]['people'].append(person)
 
         # extract samples in a video
         video_samples, num_samples, num_nonvalid = generate_samples(video_data, video_name)
@@ -265,8 +275,8 @@ if __name__ == "__main__":
     if not os.path.exists(os.path.join(TRAIN_VAL_DIR, DATA_SIZE)):
         os.makedirs(os.path.join(TRAIN_VAL_DIR, DATA_SIZE))
 
-    train_data_file = os.path.join(TRAIN_VAL_DIR, DATA_SIZE, "train_data.joblib")
-    val_data_file = os.path.join(TRAIN_VAL_DIR, DATA_SIZE, "val_data.joblib")
+    train_data_file = os.path.join(TRAIN_VAL_DIR, "train_{}.joblib".format(DATA_SIZE))
+    val_data_file = os.path.join(TRAIN_VAL_DIR, "val_{}.joblib".format(DATA_SIZE))
 
     joblib.dump(train_samples, train_data_file)
     joblib.dump(val_samples, val_data_file)

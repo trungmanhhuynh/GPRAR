@@ -18,17 +18,13 @@ from load_dataset import TrajectoryDataset
 from common.utils import calculate_ade_fde, save_traj
 from predictor.config import read_args_predictor
 
-def load_datasets(args, pose_mean, pose_var, loc_mean, loc_var):
+def load_datasets(args, mean, var):
 
     dset_val = TrajectoryDataset(
         args.val_data,
-        obs_len=args.obs_len,
-        pred_len=args.pred_len,
-        flip=args.flip,
-        pose_mean=pose_mean,
-        pose_var=pose_var,
-        loc_mean=loc_mean,
-        loc_var=loc_var
+        args,
+        mean=mean,
+        var=var
     )
 
     loader_val = DataLoader(
@@ -67,6 +63,7 @@ def test(args, model, epoch, mse_loss, dset_val, loader_val):
         gt_locations = Variable(samples['gt_locations'])          # gt_locations ~ (batch_size, pred_len, 2)
         missing_keypoints = samples['missing_keypoints']
         obs_locations = Variable(samples['obs_locations'])
+        flow = Variable(samples['flow'])
 
         # read auxilary data
         video_names = samples['video_names']
@@ -76,9 +73,11 @@ def test(args, model, epoch, mse_loss, dset_val, loader_val):
         if(args.use_cuda):
             poses, gt_locations = poses.cuda(), gt_locations.cuda()
             obs_locations = obs_locations.cuda()
+            flow = flow.cuda()
+            missing_keypoints = missing_keypoints.cuda()
 
         # forward
-        pred_locations = model(poses, missing_keypoints, obs_locations)                                      # output ~ [batch_size, pred_len, 2]
+        pred_locations = model(pose_in=poses, flow_in=flow, missing_keypoints=missing_keypoints)                                      # output ~ [batch_size, pred_len, 2]
         loss = mse_loss(pred_locations, gt_locations)
         val_loss += loss.item()
 
@@ -107,12 +106,10 @@ def resume_model(args, resumed_epoch, model):
     resume_dict = torch.load(args.resume)
     model.load_state_dict(resume_dict['state_dict'])
     resumed_epoch = resume_dict['epoch']
-    pose_mean = resume_dict['pose_mean']
-    pose_var = resume_dict['pose_var']
-    loc_mean = resume_dict['loc_mean']
-    loc_var = resume_dict['loc_var']
+    mean = resume_dict['mean']
+    var = resume_dict['var']
 
-    return resumed_epoch, model, pose_mean, pose_var, loc_mean, loc_var
+    return resumed_epoch, model, mean, var
 
 
 if __name__ == "__main__":
@@ -131,10 +128,10 @@ if __name__ == "__main__":
     # 5. resume model
     resumed_epoch = 1
     if(args.resume != ""):
-        resumed_epoch, model, pose_mean, pose_var, loc_mean, loc_var = resume_model(args, resumed_epoch, model)
+        resumed_epoch, model, mean, var = resume_model(args, resumed_epoch, model)
 
     # 3. load dataset
-    dset_val, loader_val = load_datasets(args, pose_mean, pose_var, loc_mean, loc_var)
+    dset_val, loader_val = load_datasets(args, mean, var)
     print("val datasize = {}".format(len(dset_val)))
 
     start_time = time.time()
