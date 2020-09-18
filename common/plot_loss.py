@@ -24,6 +24,7 @@ def plot_multiple_train_loss():
     LOGFILE_2 = "save_temp/predictor_pose/log/log.json"
     LOGFILE_3 = "save_temp/predictor_flow/log/log.json"
     LOGFILE_4 = "save_temp/predictor_pose_flow/log/log.json"
+    LOGFILE_5 = "save_temp_2/predictor_pose_flow_rc/log/log.json"
 
     LOG_FIGURE = "train_loss.png"
 
@@ -35,13 +36,17 @@ def plot_multiple_train_loss():
         data_3 = json.load(f)
     with open(LOGFILE_4, "r") as f:
         data_4 = json.load(f)
+    with open(LOGFILE_5, "r") as f:
+        data_5 = json.load(f)
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
 
-    ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(data_1['train_loss'], 1), 'b', label='loc ')
-    ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(data_2['train_loss'], 1), 'k', label='loc + pose')
+    ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(data_1['train_loss'], 5), 'b', label='loc ')
+    ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(data_2['train_loss'], 5), 'k', label='loc + pose')
     #ax.plot(data_3['epoch'], ndimage.gaussian_filter1d(data_3['train_loss'], 1), 'r', label='loc + camera motion')
-    ax.plot(data_4['epoch'], ndimage.gaussian_filter1d(data_4['train_loss'], 1), 'g', label='loc + camera motion + pose')
+    ax.plot(data_4['epoch'], ndimage.gaussian_filter1d(data_4['train_loss'], 5), 'g', label='loc + camera motion + pose')
+    ax.plot(data_5['epoch'], ndimage.gaussian_filter1d(data_5['train_loss'], 5), 'm', label='loc + camera motion + pose + att')
+
     ax.set_ylim([0, 0.05])
 
     # ax.plot(log_data['epoch'], log_data['val_loss'], 'b', label='validation')
@@ -66,6 +71,7 @@ def plot_multiple_val_loss():
     LOGFILE_2 = "save_temp/predictor_pose/log/log.json"
     LOGFILE_3 = "save_temp/predictor_flow/log/log.json"
     LOGFILE_4 = "save_temp/predictor_pose_flow/log/log.json"
+    LOGFILE_5 = "save_temp_2/predictor_pose_flow_rc/log/log.json"
 
     LOG_FIGURE = "val_loss.png"
 
@@ -77,18 +83,24 @@ def plot_multiple_val_loss():
         data_3 = json.load(f)
     with open(LOGFILE_4, "r") as f:
         data_4 = json.load(f)
+    with open(LOGFILE_5, "r") as f:
+        data_5 = json.load(f)
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
 
-    # ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_1['val_loss']), 3), 'b', label='loc + pose')
-    # ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_2['val_loss']), 3), 'k', label='loc + pose + camera motion')
-    # ax.plot(data_3['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_3['val_loss']), 3), 'r', label='loc + reconstructed_pose + camera motion')
+    ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_1['val_loss']), 3), 'b', label='loc + pose')
+    ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_2['val_loss']), 3), 'k', label='loc + pose + camera motion')
+    ax.plot(data_3['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_3['val_loss']), 3), 'r', label='loc + reconstructed_pose + camera motion')
+    ax.plot(data_4['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_4['val_loss']), 3), 'g', label='loc + camera motion + pose')
+    ax.plot(data_5['epoch'], ndimage.gaussian_filter1d(10 * np.log(data_5['val_loss']), 3), 'm', label='loc + camera motion + pose + att')
 
-    ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(data_1['val_loss'], 1), 'b', label='loc ')
-    ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(data_2['val_loss'], 1), 'k', label='loc + pose')
-    #ax.plot(data_3['epoch'], ndimage.gaussian_filter1d(data_3['val_loss'], 1), 'r', label='loc + camera motion')
-    ax.plot(data_4['epoch'], ndimage.gaussian_filter1d(data_4['val_loss'], 1), 'g', label='loc + camera motion + pose')
-    ax.set_ylim([0, 0.05])
+    # ax.plot(data_1['epoch'], ndimage.gaussian_filter1d(data_1['val_loss'], 5), 'b', label='loc ')
+    # ax.plot(data_2['epoch'], ndimage.gaussian_filter1d(data_2['val_loss'], 5), 'k', label='loc + pose')
+    # #ax.plot(data_3['epoch'], ndimage.gaussian_filter1d(data_3['val_loss'], 1), 'r', label='loc + camera motion')
+    # ax.plot(data_4['epoch'], ndimage.gaussian_filter1d(data_4['val_loss'], 5), 'g', label='loc + camera motion + pose')
+    # ax.plot(data_5['epoch'], ndimage.gaussian_filter1d(data_5['val_loss'], 5), 'm', label='loc + camera motion + pose + att')
+
+    # ax.set_ylim([0, 0.05])
 
     # ax.plot(log_data['epoch'], log_data['val_loss'], 'b', label='validation')
     plt.title("val_loss")

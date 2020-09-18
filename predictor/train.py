@@ -28,7 +28,7 @@ def load_datasets(args):
 
     loader_train = DataLoader(
         dset_train,
-        batch_size=128,
+        batch_size=args.batch_size,
         shuffle=True,
         num_workers=0)
 
@@ -40,7 +40,7 @@ def load_datasets(args):
 
     loader_val = DataLoader(
         dset_val,
-        batch_size=128,
+        batch_size=args.batch_size,
         shuffle=False,
         num_workers=0)
 

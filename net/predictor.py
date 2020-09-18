@@ -193,7 +193,8 @@ class TCNN_POSE_FLOW(nn.Module):
                  pred_len=10,
                  pose_features=2,
                  num_keypoints=25,
-                 flow_feats=24
+                 flow_feats=24,
+                 use_fa=False
                  ):
         super().__init__()
 
@@ -205,6 +206,7 @@ class TCNN_POSE_FLOW(nn.Module):
         self.loc_features = 2
         self.num_keypoints = num_keypoints
         self.flow_feats = flow_feats
+        self.use_fa = use_fa
 
         # TCN for prediction
         self.encoder_location = nn.Sequential(
@@ -240,6 +242,12 @@ class TCNN_POSE_FLOW(nn.Module):
             conv2d(in_channels=32, out_channels=2, kernel_size=1, stride=1, padding=0, use_bn=False),
         )
 
+        if (self.use_fa):
+            self.fa = FeatureAttention(
+                out_features=3,
+                in_channels=128
+            )
+
     def forward(self, pose_in, traj_in, flow_in):
 
         # reshape input features ~ (batch_size, in_channels, obs_len, 1)
@@ -254,6 +262,9 @@ class TCNN_POSE_FLOW(nn.Module):
         pose_y = self.encoder_pose(pose_in)
         flow_y = self.encoder_flow(flow_in)
 
+        if(self.use_fa):
+            traj_y, pose_y, flow_y = self.fa(traj_y, pose_y, flow_y)
+
         encoded_f = torch.cat((traj_y, pose_y, flow_y), dim=1)
 
         y = self.intermediate(encoded_f)
@@ -263,6 +274,44 @@ class TCNN_POSE_FLOW(nn.Module):
         y = y.permute(0, 2, 1).contiguous()          # y ~ (batch_size, pred_len, out_channels)
 
         return y
+
+
+class FeatureAttention(nn.Module):
+    def __init__(self,
+                 out_features=3,
+                 in_channels=128,
+                 ):
+        super().__init__()
+        self.out_features = out_features
+        self.in_channels = in_channels
+
+        self.conv2d_1 = conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=0)
+        self.conv2d_2 = conv2d(in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=0)
+
+        self.fcn = torch.nn.Linear(in_features=32 * 2, out_features=self.out_features)
+        self.softmax = torch.nn.Softmax()
+
+    def forward(self, location, pose, flow):
+
+        # f shape (batch_size, channels, feature_size , 1) ~ (B,C,F,1) ~ (128, 384, 2, 1)
+        # each feature has size (128, 128, 2, 1)
+
+        f = torch.cat((location, pose, flow), dim=2)  # (128, 128, 6, 1)
+        f = self.conv2d_1(f)    # (128, 64, 4, 1)
+        f = self.conv2d_2(f)    # (128, 32, 2, 1)
+        B, C, F, _ = f.shape
+        f = f.view(B, C * F)     # (128, 64)
+        s = self.softmax(self.fcn(f))       # (128,3)
+
+        location_weights = s[:, 0].view(B, 1, 1, 1)
+        pose_weights = s[:, 1].view(B, 1, 1, 1)
+        flow_weights = s[:, 2].view(B, 1, 1, 1)
+
+        location = location * location_weights
+        pose = pose * pose_weights
+        flow = flow * flow_weights
+
+        return location, pose, flow
 
 class Predictor(nn.Module):
 
@@ -309,7 +358,8 @@ class Predictor(nn.Module):
             pred_len=10,
             pose_features=2,
             num_keypoints=25,
-            flow_feats=24
+            flow_feats=24,
+            use_fa=True
         )
 
     def forward(self, pose_in, traj_in, flow_in):
