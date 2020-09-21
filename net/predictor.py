@@ -40,7 +40,9 @@ class TCNN(nn.Module):
             conv2d(in_channels=32, out_channels=2, kernel_size=1, stride=1, padding=0, use_bn=False),
         )
 
-    def forward(self, traj_in):
+    def forward(self, input_features):
+
+        traj_in = input_features
 
         # reshape input features ~ (batch_size, in_channels, obs_len, 1)
         traj_in = traj_in.permute(0, 2, 1).contiguous()
@@ -99,7 +101,9 @@ class TCNN_FLOW(nn.Module):
             conv2d(in_channels=32, out_channels=2, kernel_size=1, stride=1, padding=0, use_bn=False),
         )
 
-    def forward(self, traj_in, flow_in):
+    def forward(self, input_features):
+
+        traj_in, flow_in = input_features
 
         # reshape input features ~ (batch_size, in_channels, obs_len, 1)
         traj_in = traj_in.permute(0, 2, 1).contiguous()
@@ -165,7 +169,9 @@ class TCNN_POSE(nn.Module):
             conv2d(in_channels=32, out_channels=2, kernel_size=1, stride=1, padding=0, use_bn=False),
         )
 
-    def forward(self, pose_in, traj_in):
+    def forward(self, input_features):
+
+        traj_in, pose_in = input_features
 
         # reshape input features ~ (batch_size, in_channels, obs_len, 1)
         traj_in = traj_in.permute(0, 2, 1).contiguous()
@@ -248,7 +254,9 @@ class TCNN_POSE_FLOW(nn.Module):
                 in_channels=128
             )
 
-    def forward(self, pose_in, traj_in, flow_in):
+    def forward(self, input_features):
+
+        traj_in, pose_in, flow_in = input_features
 
         # reshape input features ~ (batch_size, in_channels, obs_len, 1)
         traj_in = traj_in.permute(0, 2, 1).contiguous()
@@ -315,65 +323,56 @@ class FeatureAttention(nn.Module):
 
 class Predictor(nn.Module):
 
-    def __init__(self, output_feats=2,
+    def __init__(self,
                  obs_len=10,
                  pred_len=10,
-                 pose_features=2,
-                 num_keypoints=25
+                 prediction_model="tcnn_pose_flow"
                  ):
         super().__init__()
 
         # init variables
-        self.output_feats = output_feats
         self.obs_len = obs_len
         self.pred_len = pred_len
-        self.pose_features = pose_features
-        self.loc_features = 2
-        self.num_keypoints = num_keypoints
 
-        self.tcnn = TCNN(
-            output_feats=2,
-            obs_len=10,
-            pred_len=10,
-        )
+        if (prediction_model == "tcnn"):
+            self.model = TCNN(
+                output_feats=2,
+                obs_len=10,
+                pred_len=10,
+            )
+        elif (prediction_model == "tcnn_flow"):
+            self.model = TCNN_FLOW(
+                output_feats=2,
+                obs_len=10,
+                pred_len=10,
+                flow_feats=24
+            )
 
-        # self.tcnn_flow = TCNN_FLOW(
-        #     output_feats=2,
-        #     obs_len=10,
-        #     pred_len=10,
-        #     flow_feats=24
-        # )
+        elif (prediction_model == "tcnn_pose"):
+            self.model = TCNN_POSE(
+                output_feats=2,
+                obs_len=10,
+                pred_len=10,
+                pose_features=2,
+                num_keypoints=25
+            )
 
-        self.tcnn_pose = TCNN_POSE(
-            output_feats=2,
-            obs_len=10,
-            pred_len=10,
-            pose_features=2,
-            num_keypoints=25
-        )
+        elif (prediction_model == "tcnn_pose_flow"):
+            self.model = TCNN_POSE_FLOW(
+                output_feats=2,
+                obs_len=10,
+                pred_len=10,
+                pose_features=2,
+                num_keypoints=25,
+                flow_feats=24,
+                use_fa=False
+            )
+        else:
+            print("please input right supported prediction model")
+            exit(-1)
 
-        self.tcnn_pose_flow = TCNN_POSE_FLOW(
-            output_feats=2,
-            obs_len=10,
-            pred_len=10,
-            pose_features=2,
-            num_keypoints=25,
-            flow_feats=24,
-            use_fa=True
-        )
+    def forward(self, input_features):
 
-    def forward(self, pose_in, traj_in, flow_in):
-
-        # prediction using pose + location + gridflow (camera motions)
-        y = self.tcnn_pose_flow(pose_in, traj_in, flow_in)
-
-        # prediction using pose + location
-        # y = self.tcnn_pose(pose_in, traj_in)
-
-        # prediction using location + flow
-        # y = self.tcnn_flow(traj_in, flow_in)
-
-        # prediction using location
-        # y = self.tcnn(traj_in)
+        y = self.model(input_features)
 
         return y

@@ -24,10 +24,9 @@ def load_datasets(args):
     # 1.prepare data
     dset_train = PoseDataset(
         args.train_data,
-        add_noise=args.add_noise,
-        obs_len=args.obs_len,
-        pred_len=args.pred_len,
-        flip=args.flip
+        args,
+        pose_mean=None,
+        pose_var=None,
     )
 
     loader_train = DataLoader(
@@ -38,10 +37,7 @@ def load_datasets(args):
 
     dset_val = PoseDataset(
         args.val_data,
-        add_noise=args.add_noise,
-        obs_len=args.obs_len,
-        pred_len=args.pred_len,
-        flip=args.flip,
+        args,
         pose_mean=dset_train.pose_mean,
         pose_var=dset_train.pose_var
     )

@@ -33,11 +33,9 @@ class Traj_STGCNN(nn.Module):
                                            num_keypoints=25,
                                            edge_importance_weighting=True)
 
-        self.predictor = Predictor(output_feats=2,
-                                   obs_len=10,
+        self.predictor = Predictor(obs_len=10,
                                    pred_len=10,
-                                   pose_features=pose_features,
-                                   num_keypoints=25)
+                                   prediction_model="tcnn_pose_flow")
 
     def forward(self, pose_in, flow_in=None, missing_keypoints=None):
 
@@ -57,7 +55,7 @@ class Traj_STGCNN(nn.Module):
             # pose_in[missing_keypoints] = pred_poses[missing_keypoints].clone()
             traj_in = pose_in[:, :, 8 * 2:8 * 2 + 2].clone()
 
-            pred_locations = self.predictor(pose_in, traj_in, flow_in)
+            pred_locations = self.predictor((pose_in, traj_in, flow_in))
             output = pred_locations                # size ~ (batch_size, obs_len, 2)
 
         else:

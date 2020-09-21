@@ -13,28 +13,27 @@ Please read [PRE_PROCESS.md](PRE_PROCESS.md)
 
 
 ## Reconstructor 
-#### Generate train/val data 
+#### 1. Generate train/val data 
 Generate confident poses:
 ```
 $ python reconstructor/generate_data.py --d_size large
 ```
 By default, The script generates `train_val_data/JAAD/reconstructor/train_$d_size.joblib` and `train_val_data/JAAD/reconstructor/val_$d_size.joblib`
 
-#### Train
+#### 2. Train
 ```
-python reconstructor/train.py --train_data train_val_data/JAAD/reconstructor/train_large.joblib --val_data train_val_data/JAAD/reconstructor/val_large.joblib --add_noise
+python reconstructor/train.py --dset JAAD --dsize large --add_noise --save_dir save/reconstructor/
 ```
-By default, trained models are save at `save/reconstructor/model`
 
-#### Test
+#### 3. Test
+
 To valdiate on high-confident poses + random keypoint drop (same validation set as used in training)
 ```
-python reconstructor/test.py --resume save/reconstructor/model/model_best.pt --val_data train_val_data/JAAD/reconstructor/val_large_hcposes.joblib --add_noise
+python reconstructor/test.py --test_data train_val_data/JAAD/reconstructor/val_large.joblib --add_noise --resume save/reconstructor/model/model_best.py
 ```
-
-To valdidate on the save
+To test on pose used in prediction step. Dont specify `--add_noise` because it already exists
 ```
-python reconstructor/test.py --resume save/reconstructor/model/model_best.pt 
+python reconstructor/test.py --test_data train_val_data/JAAD/predictor/val_large.joblib --resume save/reconstructor/model/model_best.py
 ```
 
 ## Predictor

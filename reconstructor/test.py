@@ -20,11 +20,8 @@ from reconstructor.config import read_args_constructor
 def load_datasets(args, pose_mean=None, pose_var=None):
 
     dset_val = PoseDataset(
-        args.val_data,
-        add_noise=args.add_noise,
-        obs_len=args.obs_len,
-        pred_len=args.pred_len,
-        flip=args.flip,
+        args.test_data,
+        args,
         pose_mean=pose_mean,
         pose_var=pose_var
     )

@@ -38,8 +38,8 @@ class TrajectoryDataset(Dataset):
         self.pose_feats = 75
         self.num_keypoints = 25
         self.flow_feats = 24
-        self.image_width = 1280
-        self.image_height = 960
+        self.image_width = args.image_width               # original 1920, previously 1280
+        self.image_height = args.image_height              # original 1080, previosly 960
 
         self.xy_indexes = []
         for k in range(0, self.num_keypoints):

@@ -9,16 +9,10 @@ class PoseDataset(Dataset):
     """Dataloader for the Pose datasets"""
 
     def __init__(self, data_file,
-                 add_noise=False,
-                 obs_len=10,
-                 pred_len=10,
-                 pose_features=3,              # x, y, c
-                 num_keypoints=25,                 # using openpose 25 keypoints
-                 flip=False,
+                 args,
                  pose_mean=None,
                  pose_var=None,
-                 image_width=1280,
-                 image_height = 960):
+                 ):
         """
         Args:
                 data_file: file name of train/val data. Data in data_file has the following structure:
@@ -33,17 +27,17 @@ class PoseDataset(Dataset):
         super(PoseDataset, self).__init__()
 
         # set parapmeters
-        self.obs_len = obs_len
-        self.pred_len = pred_len
-        self.traj_len = obs_len + pred_len
-        self.pose_features = pose_features
-        self.num_keypoints = num_keypoints
-        self.image_width = image_width
-        self.image_height = image_height
-
-        self.add_noise = add_noise
-        self.flip = flip
+        self.obs_len = args.obs_len
+        self.pred_len = args.pred_len
+        self.traj_len = args.obs_len + args.pred_len
+        self.pose_features = 3
+        self.num_keypoints = 25
+        self.image_width = args.image_width
+        self.image_height = args.image_height
+        self.add_noise = args.add_noise
+        self.flip = args.flip
         self.xy_indexes = []
+
         for k in range(0, 25):
             self.xy_indexes.append(3 * k)
             self.xy_indexes.append(3 * k + 1)

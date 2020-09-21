@@ -22,10 +22,13 @@ def read_args_predictor():
     parser.add_argument('--lr_step', type=int, default=20,
                         help='reduce learning rate every lr_step')
     # train/val parameters
-    parser.add_argument('--train_data', type=str, default="train_val_data/JAAD/predictor/train_medium.joblib",
-                        help='train  data')
+
     parser.add_argument('--val_data', type=str, default="train_val_data/JAAD/predictor/val_medium.joblib",
                         help='validation data')
+    parser.add_argument('--image_width', type=int, default=1920,
+                        help='image_width')
+    parser.add_argument('--image_height', type=str, default=1080,
+                        help='image_height')
     parser.add_argument('--resume', type=str, default="",
                         help='resume a trained model?')
     parser.add_argument('--flip', action='store_true', default=False,
