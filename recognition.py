@@ -34,6 +34,7 @@ class Recognition(RecognitionSettings):
                     self.io.print_log('Eval epoch: {}'.format(epoch))
                     self.test()
                     self.io.print_log('Done.')
+
         # test phase
         elif self.arg.phase == 'test':
 
@@ -103,7 +104,7 @@ class Recognition(RecognitionSettings):
 
             # inference
             with torch.no_grad():
-                output = self.model(data)
+                output, feature = self.model(data)
             result_frag.append(output.data.cpu().numpy())
 
             # get loss
@@ -121,8 +122,6 @@ class Recognition(RecognitionSettings):
             # show top-k accuracy
             for k in self.arg.show_topk:
                 self.show_topk(k)
-
-        print(len(loss_value))
 
     def show_epoch_info(self):
         for k, v in self.epoch_info.items():

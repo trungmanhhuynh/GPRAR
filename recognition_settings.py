@@ -143,9 +143,10 @@ class RecognitionSettings():
         self.epoch_info = dict()
         self.meta_info = dict(epoch=0, iter=0)
 
-    def get_parser(self):
+    @staticmethod
+    def get_parser(add_help=False):
 
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(add_help=add_help, description='Recognition Settings ')
         parser.add_argument('-w', '--work_dir', default='./work_dir/tmp', help='the work folder for storing results')
         parser.add_argument('-c', '--config', default=None, help='path to the configuration file')
 

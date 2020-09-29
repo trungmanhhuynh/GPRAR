@@ -3,8 +3,8 @@ weights: pretrained_models/recognition/st_gcn.kinetics.pt
 # feeder
 feeder: feeder.feeder.Feeder
 test_feeder_args:
-  data_path: data/Kinetics/kinetics-skeleton/val_data.npy
-  label_path: data/Kinetics/kinetics-skeleton/val_label.pkl
+  data_path: data/kinetics-skeleton/val_data.npy
+  label_path: data/kinetics-skeleton/val_label.pkl
 
 # model
 model: net.st_gcn.Model
@@ -18,5 +18,6 @@ model_args:
 
 # test 
 phase: test
-device: 0
+device: [0, 1, 2 ,3]
 test_batch_size: 64
+visualize: True

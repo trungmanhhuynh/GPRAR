@@ -2,6 +2,7 @@
 import sys
 from recognition import Recognition
 from reconstruction import Reconstruction
+from recognition_demo import RecognitionDemo
 
 
 if __name__ == "__main__":
@@ -9,12 +10,12 @@ if __name__ == "__main__":
     # Recognize actions
     if(sys.argv[1] == "recognition"):
         r = Recognition(sys.argv[2:])
-        r.start()
+    elif(sys.argv[1] == "recognition_demo"):
+        r = RecognitionDemo(sys.argv[2:])
     elif (sys.argv[1] == "reconstruction"):
         r = Reconstruction(sys.argv[2:])
-        r.start()
     else:
         print("Please specify supported modes: recognition, reconstruction, prediction")
-    # Reconstruct poses
+        exit(-1)
 
-    # Prediction
+    r.start()
