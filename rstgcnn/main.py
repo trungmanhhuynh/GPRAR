@@ -1,6 +1,6 @@
 
 import sys
-from rstgcnn.recognition import Recognition
+from recognition import Recognition
 
 if __name__ == "__main__":
 

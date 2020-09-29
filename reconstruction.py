@@ -1,10 +1,11 @@
 
 import numpy as np
 import torch
+import torch.nn as nn
 
-from .config import Setting_Recognition
+from reconstruction_settings import ReconstructionSettings
 
-class Recognition(Setting_Recognition):
+class Reconstruction(ReconstructionSettings):
 
     def __init__(self, argv=None):
         super().__init__(argv)
@@ -61,15 +62,20 @@ class Recognition(Setting_Recognition):
         loader = self.data_loader['train']
         loss_value = []
 
-        for data, label in loader:
+        for noisy_data, data, label in loader:
 
             # get data
+            noisy_data = noisy_data.float().to(self.dev)
             data = data.float().to(self.dev)
             label = label.long().to(self.dev)
 
+            assert not torch.equal(noisy_data, data)
+
             # forward
-            output = self.model(data)
-            loss = self.loss(output, label)
+            output_reg, output_rec = self.model(noisy_data)
+            lossReg = self.lossReg(output_reg, label)
+            lossRec = self.lossRec(output_rec, data)
+            loss = lossReg + lossRec
 
             # backward
             self.optimizer.zero_grad()
@@ -78,6 +84,8 @@ class Recognition(Setting_Recognition):
 
             # statistics
             self.iter_info['loss'] = loss.data.item()
+            self.iter_info['lossReg'] = lossReg.data.item()
+            self.iter_info['lossRec'] = lossRec.data.item()
             self.iter_info['lr'] = '{:.6f}'.format(self.lr)
             loss_value.append(self.iter_info['loss'])
             self.show_iter_info()
@@ -103,12 +111,14 @@ class Recognition(Setting_Recognition):
 
             # inference
             with torch.no_grad():
-                output = self.model(data)
-            result_frag.append(output.data.cpu().numpy())
+                output_reg, output_rec = self.model(data)
+            result_frag.append(output_reg.data.cpu().numpy())
 
             # get loss
             if evaluation:
-                loss = self.loss(output, label)
+                lossReg = self.lossReg(output_reg, label)
+                lossRec = self.lossRec(output_rec, data)
+                loss = lossReg + lossRec
                 loss_value.append(loss.item())
                 label_frag.append(label.data.cpu().numpy())
 
@@ -121,8 +131,6 @@ class Recognition(Setting_Recognition):
             # show top-k accuracy
             for k in self.arg.show_topk:
                 self.show_topk(k)
-
-        print(len(loss_value))
 
     def show_epoch_info(self):
         for k, v in self.epoch_info.items():

@@ -58,6 +58,14 @@ python predictor/train.py --train_data train_val_data/JAAD/predictor/train_mediu
 python utils/analysis.py --traj_file save/trajs.json --test_data train_val_data/JAAD/mini_size/val_data.joblib
 ```
 
+## Train/Val Recognition SubNetwork using Kinectics dataset
+
+```
+python main.py -c configurations/recognition/train.yaml 
+```
+```
+python main.py -c configurations/recognition/test.yaml 
+```
 
 
 

@@ -10,7 +10,7 @@ import os
 
 JAAD_DATASET_DIR = "/home/manhh/github/datasets/JAAD"
 PROCESSED_DATA_DIR = "/home/manhh/github/Traj-STGCNN/processed_data/JAAD"
-OPENPOSE_DIR =  "/home/manhh/github/openpose/build/examples/openpose"
+OPENPOSE_DIR =  "/home/manhh/github/test/openpose/build/examples/openpose"
 
 
 def generate_pose_data_jaad():

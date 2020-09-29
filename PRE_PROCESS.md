@@ -79,3 +79,15 @@ Example below visualize optical flow to images of JAAD/video0001.
 $ conda activate flownet2_env
 $ python data_utils/JAAD/visualize_flow_data.py --input_flow_dir processed_data/JAAD/flow/video_0001/ --output_image_dir video0001
 ```
+
+
+#### Download Kinetics-skeleton dataset
+```
+gdown https://drive.google.com/uc?id=1PvIM_FjDRVSKh_kRDiWBpKkNNp3fUH3o
+```
+
+To generate train/val data with medium size (30% of data), run 
+```
+python data_utils/kinetics_skeleton/kinetics_gendata.py --data_path ../datasets/features/kinetics-skeleton/ --out_folder data/kinetics-skeleton/ --dsize medium
+```
+

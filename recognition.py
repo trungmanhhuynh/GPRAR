@@ -2,9 +2,9 @@
 import numpy as np
 import torch
 
-from .config import Setting_Recognition
+from recognition_settings import RecognitionSettings
 
-class Recognition(Setting_Recognition):
+class Recognition(RecognitionSettings):
 
     def __init__(self, argv=None):
         super().__init__(argv)

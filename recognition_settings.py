@@ -27,7 +27,7 @@ def weights_init(m):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
 
-class Recognition_Config():
+class RecognitionSettings():
 
     def __init__(self, argv=None):
 

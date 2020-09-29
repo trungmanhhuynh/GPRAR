@@ -27,7 +27,7 @@ def weights_init(m):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
 
-class Recognition_Config():
+class ReconstructionSettings():
 
     def __init__(self, argv=None):
 
@@ -43,7 +43,9 @@ class Recognition_Config():
         self.model = self.io.load_model(self.arg.model,
                                         **(self.arg.model_args))
         self.model.apply(weights_init)
-        self.loss = nn.CrossEntropyLoss()
+
+        self.lossReg = nn.CrossEntropyLoss()
+        self.lossRec = nn.MSELoss()
 
     def load_weights(self):
         if self.arg.weights:
@@ -160,7 +162,7 @@ class Recognition_Config():
         # visulize and debug
         parser.add_argument('--log_interval', type=int, default=100, help='the interval for printing messages (#iteration)')
         parser.add_argument('--save_interval', type=int, default=10, help='the interval for storing models (#iteration)')
-        parser.add_argument('--eval_interval', type=int, default=5, help='the interval for evaluating models (#iteration)')
+        parser.add_argument('--eval_interval', type=int, default=1, help='the interval for evaluating models (#iteration)')
         parser.add_argument('--save_log', type=str2bool, default=True, help='save logging or not')
         parser.add_argument('--print_log', type=str2bool, default=True, help='print logging or not')
         parser.add_argument('--pavi_log', type=str2bool, default=False, help='logging on pavi or not')
