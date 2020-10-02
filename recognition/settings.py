@@ -34,16 +34,62 @@ class RecognitionSettings():
         self.load_arg(argv)
         self.init_environment()
         self.load_model()
+        self.define_loss()
         self.load_weights()
         self.gpu()
         self.load_data()
         self.load_optimizer()
 
+    def load_arg(self, argv=None):
+
+        parser = self.get_parser()
+
+        # load arg form config file
+        p = parser.parse_args(argv)
+        if p.config is not None:
+            # load config file
+            with open(p.config, 'r') as f:
+                default_arg = yaml.load(f, Loader=yaml.FullLoader)
+
+            # update parser from config file
+            key = vars(p).keys()
+            for k in default_arg.keys():
+                if k not in key:
+                    print('Unknown Arguments: {}'.format(k))
+                    assert k in key
+
+            parser.set_defaults(**default_arg)
+
+        self.arg = parser.parse_args(argv)
+
+    def init_environment(self):
+        self.io = torchlight.IO(
+            self.arg.work_dir,
+            save_log=self.arg.save_log,
+            print_log=self.arg.print_log)
+        self.io.save_arg(self.arg)
+
+        # gpu
+        if self.arg.use_gpu:
+            gpus = torchlight.visible_gpu(self.arg.device)
+            torchlight.occupy_gpu(gpus)
+            self.gpus = gpus
+            self.dev = "cuda:0"
+        else:
+            self.dev = "cpu"
+
+        self.result = dict()
+        self.iter_info = dict()
+        self.epoch_info = dict()
+        self.meta_info = dict(epoch=0, iter=0)
+
+    def define_loss(self):
+        self.loss = nn.CrossEntropyLoss()
+
     def load_model(self):
         self.model = self.io.load_model(self.arg.model,
                                         **(self.arg.model_args))
         self.model.apply(weights_init)
-        self.loss = nn.CrossEntropyLoss()
 
     def load_weights(self):
         if self.arg.weights:
@@ -99,50 +145,6 @@ class RecognitionSettings():
         else:
             raise ValueError()
 
-    def load_arg(self, argv=None):
-
-        parser = self.get_parser()
-
-        # load arg form config file
-        p = parser.parse_args(argv)
-        if p.config is not None:
-            # load config file
-            with open(p.config, 'r') as f:
-                default_arg = yaml.load(f, Loader=yaml.FullLoader)
-
-            # update parser from config file
-            key = vars(p).keys()
-            for k in default_arg.keys():
-                if k not in key:
-                    print('Unknown Arguments: {}'.format(k))
-                    assert k in key
-
-            parser.set_defaults(**default_arg)
-
-        self.arg = parser.parse_args(argv)
-        print(self.arg)
-
-    def init_environment(self):
-        self.io = torchlight.IO(
-            self.arg.work_dir,
-            save_log=self.arg.save_log,
-            print_log=self.arg.print_log)
-        self.io.save_arg(self.arg)
-
-        # gpu
-        if self.arg.use_gpu:
-            gpus = torchlight.visible_gpu(self.arg.device)
-            torchlight.occupy_gpu(gpus)
-            self.gpus = gpus
-            self.dev = "cuda:0"
-        else:
-            self.dev = "cpu"
-
-        self.result = dict()
-        self.iter_info = dict()
-        self.epoch_info = dict()
-        self.meta_info = dict(epoch=0, iter=0)
-
     @staticmethod
     def get_parser(add_help=False):
 
@@ -157,7 +159,8 @@ class RecognitionSettings():
         parser.add_argument('--num_epoch', type=int, default=80, help='stop training in which epoch')
         parser.add_argument('--use_gpu', type=str2bool, default=True, help='use GPUs or not')
         parser.add_argument('--device', type=int, default=0, nargs='+', help='the indexes of GPUs for training or testing')
-        
+        parser.add_argument('--num_worker', type=int, default=4, help='the number of worker per gpu for data loader')
+
         # visulize and debug
         parser.add_argument('--log_interval', type=int, default=100, help='the interval for printing messages (#iteration)')
         parser.add_argument('--save_interval', type=int, default=10, help='the interval for storing models (#iteration)')
@@ -168,7 +171,6 @@ class RecognitionSettings():
 
         # feeder
         parser.add_argument('--feeder', default='feeder.feeder', help='data loader will be used')
-        parser.add_argument('--num_worker', type=int, default=4, help='the number of worker per gpu for data loader')
         parser.add_argument('--train_feeder_args', action=DictAction, default=dict(), help='the arguments of data loader for training')
         parser.add_argument('--test_feeder_args', action=DictAction, default=dict(), help='the arguments of data loader for test')
         parser.add_argument('--batch_size', type=int, default=256, help='training batch size')

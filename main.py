@@ -1,4 +1,3 @@
-
 import sys
 from recognition.recognition import Recognition
 from recognition.demo import RecognitionDemo
