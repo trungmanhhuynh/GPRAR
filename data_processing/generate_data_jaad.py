@@ -1,10 +1,3 @@
-"""
-Script to generate train and validation data
-
-author: Manh Huynh
-last update: 06/21/2020
-
-"""
 import os
 import json
 import joblib

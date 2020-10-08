@@ -119,7 +119,6 @@ def random_shift(data_numpy):
 def random_noise(data_numpy):
     # input: C,T,V,M
     C, T, V, M = data_numpy.shape
-    noisy_data = np.copy(data_numpy)
 
     for i in range(M):
 

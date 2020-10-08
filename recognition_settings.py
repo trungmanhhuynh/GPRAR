@@ -163,8 +163,8 @@ class RecognitionSettings():
 
         # visulize and debug
         parser.add_argument('--log_interval', type=int, default=100, help='the interval for printing messages (#iteration)')
-        parser.add_argument('--save_interval', type=int, default=10, help='the interval for storing models (#iteration)')
-        parser.add_argument('--eval_interval', type=int, default=5, help='the interval for evaluating models (#iteration)')
+        parser.add_argument('--save_interval', type=int, default=1, help='the interval for storing models (#iteration)')
+        parser.add_argument('--eval_interval', type=int, default=1, help='the interval for evaluating models (#iteration)')
         parser.add_argument('--save_log', type=str2bool, default=True, help='save logging or not')
         parser.add_argument('--print_log', type=str2bool, default=True, help='print logging or not')
         parser.add_argument('--pavi_log', type=str2bool, default=False, help='logging on pavi or not')

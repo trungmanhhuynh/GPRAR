@@ -1,7 +1,7 @@
 import sys
-from recognition.recognition import Recognition
-from recognition.demo import RecognitionDemo
-from reconstruction.reconstruction import Reconstruction
+from recognition import Recognition
+from recognition_demo import RecognitionDemo
+from reconstruction import Reconstruction
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 
-from recognition.settings import RecognitionSettings
+from recognition_settings import RecognitionSettings
 
 class Recognition(RecognitionSettings):
 
@@ -68,6 +68,10 @@ class Recognition(RecognitionSettings):
             data = data.float().to(self.dev)
             label = label.long().to(self.dev)
 
+            print(data)
+            print(data.shape)
+            input("here")
+
             # forward
             output = self.model(data)
             loss = self.loss(output, label)
@@ -102,9 +106,10 @@ class Recognition(RecognitionSettings):
             data = data.float().to(self.dev)
             label = label.long().to(self.dev)
 
+
             # inference
             with torch.no_grad():
-                output, feature = self.model(data)
+                output = self.model(data)
             result_frag.append(output.data.cpu().numpy())
 
             # get loss

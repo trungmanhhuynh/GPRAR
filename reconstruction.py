@@ -2,8 +2,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-
-from reconstruction.settings import ReconstructionSettings
+from reconstruction_settings import ReconstructionSettings
 
 class Reconstruction(ReconstructionSettings):
 
@@ -75,7 +74,7 @@ class Reconstruction(ReconstructionSettings):
             output_reg, output_rec = self.model(noisy_data)
             lossReg = self.lossReg(output_reg, label)
             lossRec = self.lossRec(output_rec, data)
-            loss = lossReg + lossRec
+            loss = 0.1 * lossReg + lossRec
 
             # backward
             self.optimizer.zero_grad()
@@ -103,22 +102,23 @@ class Reconstruction(ReconstructionSettings):
         result_frag = []
         label_frag = []
 
-        for data, label in loader:
+        for noisy_data, data, label in loader:
 
             # get data
+            noisy_data = noisy_data.float().to(self.dev)
             data = data.float().to(self.dev)
             label = label.long().to(self.dev)
 
             # inference
             with torch.no_grad():
-                output_reg, output_rec = self.model(data)
+                output_reg, output_rec = self.model(noisy_data)
             result_frag.append(output_reg.data.cpu().numpy())
 
             # get loss
             if evaluation:
                 lossReg = self.lossReg(output_reg, label)
                 lossRec = self.lossRec(output_rec, data)
-                loss = lossReg + lossRec
+                loss = 0.1 * lossReg + lossRec
                 loss_value.append(loss.item())
                 label_frag.append(label.data.cpu().numpy())
 

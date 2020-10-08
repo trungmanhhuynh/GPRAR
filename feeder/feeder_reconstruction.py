@@ -88,7 +88,8 @@ class Feeder(torch.utils.data.Dataset):
         if self.random_move:
             data_numpy = tools.random_move(data_numpy)
 
+        noisy_data = np.copy(data_numpy)
         if self.random_noise:
-            noisy_data = tools.random_noise(data_numpy)
+            noisy_data = tools.random_noise(noisy_data)
 
         return noisy_data, data_numpy, label

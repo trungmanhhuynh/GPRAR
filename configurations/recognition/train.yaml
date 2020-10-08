@@ -5,12 +5,13 @@ feeder: feeder.feeder.Feeder
 train_feeder_args:
   random_choose: True
   random_move: True
-  window_size: 150 
-  data_path: data/kinetics-skeleton/train_data.npy
-  label_path: data/kinetics-skeleton/train_label.pkl
+  window_size: 10 
+  data_path: data/reconstruction/kinetics/train_data.npy
+  label_path: data/reconstruction/kinetics/train_label.pkl
 test_feeder_args:
-  data_path: data/kinetics-skeleton/val_data.npy
-  label_path: data/kinetics-skeleton/val_label.pkl
+  window_size: 10 # it was not exist 
+  data_path: data/reconstruction/kinetics/val_data.npy
+  label_path:  data/reconstruction/kinetics/val_label.pkl
 
 # model
 model: net.st_gcn.Model

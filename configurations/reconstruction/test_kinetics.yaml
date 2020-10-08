@@ -1,15 +1,16 @@
-weights: pretrained_models/recognition/st_gcn.kinetics.pt
+weights: pretrained_models/recognition/kinetics-st_gcn_T10.pt
 
 # feeder
-feeder: feeder.feeder.Feeder
+feeder: feeder.feeder_reconstruction.Feeder
 test_feeder_args:
-  window_size: 10 # it was not exist 
+  random_choose: False
+  window_size: 10 
+  random_noise: False
   data_path: data/reconstruction/kinetics/val_data.npy
   label_path: data/reconstruction/kinetics/val_label.pkl
 
-
 # model
-model: net.st_gcn.Model
+model: net.rst_gcn_kinetics.Model
 model_args:
   in_channels: 3
   num_class: 400
@@ -17,9 +18,10 @@ model_args:
   graph_args:
     layout: 'openpose'
     strategy: 'spatial'
+  window_size: 10
+
 
 # test 
 phase: test
-device: 0
-test_batch_size: 1
-res_video_dir: results/recognition/video
+device: [0, 1, 2, 3]
+test_batch_size: 64

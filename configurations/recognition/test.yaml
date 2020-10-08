@@ -1,10 +1,11 @@
-weights: pretrained_models/recognition/st_gcn.kinetics.pt
+weights: ./work_dir/recognition/kinetics_skeleton/ST_GCN/epoch5_model.pt
 
 # feeder
 feeder: feeder.feeder.Feeder
 test_feeder_args:
-  data_path: data/kinetics-skeleton/val_data.npy
-  label_path: data/kinetics-skeleton/val_label.pkl
+  window_size: 10 # it was not exist 
+  data_path: data/reconstruction/kinetics/val_data.npy
+  label_path: data/reconstruction/kinetics/val_label.pkl
 
 # model
 model: net.st_gcn.Model
@@ -20,4 +21,3 @@ model_args:
 phase: test
 device: [0, 1, 2 ,3]
 test_batch_size: 64
-visualize: True

@@ -1,5 +1,5 @@
 '''
-generate_location_data_jaad.py 
+generate_location_data_jaad.py
 
 Author: Manh Huynh
 Last Update: 06/19/2020
@@ -11,7 +11,7 @@ import json
 
 
 JAAD_DATASET_DIR = "/home/manhh/github/datasets/JAAD"
-PROCESSED_DATA_DIR = "/home/manhh/github/Traj-STGCNN/processed_data/JAAD"
+PROCESSED_DATA_DIR = "/home/manhh/github/datasets/features/JAAD"
 
 
 sys.path.append(JAAD_DATASET_DIR)
@@ -44,7 +44,6 @@ def generate_location_data():
             os.makedirs(processed_video_dir)
 
         num_frames = jaad_data[video]['num_frames']
-        print(jaad_data[video]['width'], "x", jaad_data[video]['height'])
 
         for search_frame in range(num_frames):
 
