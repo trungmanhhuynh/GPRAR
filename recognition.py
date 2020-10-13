@@ -68,10 +68,6 @@ class Recognition(RecognitionSettings):
             data = data.float().to(self.dev)
             label = label.long().to(self.dev)
 
-            print(data)
-            print(data.shape)
-            input("here")
-
             # forward
             output = self.model(data)
             loss = self.loss(output, label)
@@ -105,7 +101,6 @@ class Recognition(RecognitionSettings):
             # get data
             data = data.float().to(self.dev)
             label = label.long().to(self.dev)
-
 
             # inference
             with torch.no_grad():

@@ -38,7 +38,8 @@ def generate_data(args, mode):
         label_info = json.load(f)
 
     if(args.debug):
-        sample_name = sample_name[:200]
+
+        sample_name = sample_name[:10000]
 
     sample_id = [name.split('.')[0] for name in sample_name]
     label = np.array(
@@ -103,7 +104,7 @@ def generate_data(args, mode):
 
     all_data = np.concatenate(all_data, axis=3)
     C, T, V, N = all_data.shape
-    all_data = np.expand_dims(np.reshape(all_data, (N, C, T, V)), axis=4)  # change to shape (N, C, T, V, 1)
+    all_data = np.expand_dims(all_data.transpose(3, 0, 1, 2), axis=4)  # change to shape (N, C, T, V, 1)
 
     # write to file
     data_out_path = os.path.join(args.out_folder, "{}_data.npy".format(mode))
@@ -113,15 +114,13 @@ def generate_data(args, mode):
         mode='w+',
         shape=all_data.shape)
     fp[...] = all_data
-    # print(fp[3])
-    # print("data shape: ")
-    # print(fp.shape)
-    # print("save data to file: ", data_out_path)
-    # input("here")
 
     label_out_path = os.path.join(args.out_folder, "{}_label.pkl".format(mode))
     with open(label_out_path, 'wb') as f:
         pickle.dump((sample_name, all_label), f)
+
+    print("size of data:", fp.shape)
+    print("save data to file: ", data_out_path)
     print("save label to file: ", label_out_path)
 
 

@@ -68,13 +68,11 @@ class Reconstruction(ReconstructionSettings):
             data = data.float().to(self.dev)
             label = label.long().to(self.dev)
 
-            assert not torch.equal(noisy_data, data)
-
             # forward
             output_reg, output_rec = self.model(noisy_data)
             lossReg = self.lossReg(output_reg, label)
             lossRec = self.lossRec(output_rec, data)
-            loss = 0.1 * lossReg + lossRec
+            loss = lossReg + lossRec
 
             # backward
             self.optimizer.zero_grad()
@@ -98,7 +96,7 @@ class Reconstruction(ReconstructionSettings):
 
         self.model.eval()
         loader = self.data_loader['test']
-        loss_value = []
+        loss_value, loss_reg_value, loss_rec_value = [], [], []
         result_frag = []
         label_frag = []
 
@@ -109,22 +107,36 @@ class Reconstruction(ReconstructionSettings):
             data = data.float().to(self.dev)
             label = label.long().to(self.dev)
 
+            # print("noisy_data")
+            # print(noisy_data[0, :, 1, :, 0])
+            # print("data")
+            # print(data[0, :, 1, :, 0])
+
             # inference
             with torch.no_grad():
                 output_reg, output_rec = self.model(noisy_data)
             result_frag.append(output_reg.data.cpu().numpy())
 
+            # print("output_rec")
+            # print(output_rec[1, :, 1, :, 0])  # (N , C, T, V, M)
+
+            # input("here")
             # get loss
             if evaluation:
                 lossReg = self.lossReg(output_reg, label)
                 lossRec = self.lossRec(output_rec, data)
-                loss = 0.1 * lossReg + lossRec
+                loss = lossReg + lossRec
                 loss_value.append(loss.item())
+                loss_rec_value.append(lossRec.item())
+                loss_reg_value.append(lossReg.item())
+
                 label_frag.append(label.data.cpu().numpy())
 
         self.result = np.concatenate(result_frag)
         if evaluation:
             self.label = np.concatenate(label_frag)
+            self.epoch_info['mean_loss_rec'] = np.mean(loss_rec_value)
+            self.epoch_info['mean_loss_reg'] = np.mean(loss_reg_value)
             self.epoch_info['mean_loss'] = np.mean(loss_value)
             self.show_epoch_info()
 

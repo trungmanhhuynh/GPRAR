@@ -1,5 +1,5 @@
-work_dir: ./work_dir/reconstruction/kinetics/
-# weights: pretrained_models/recognition/st_gcn.kinetics.pt
+work_dir: ./work_dir/reconstruction/kinetics
+# weights: pretrained_models/recognition/kinetics-st_gcn_T10.pt
 
 # feeder
 feeder: feeder.feeder_reconstruction.Feeder
@@ -7,13 +7,13 @@ train_feeder_args:
   random_choose: True
   random_move: True
   window_size: 10 
-  random_noise: False
+  random_noise: True
   data_path: data/reconstruction/kinetics/train_data.npy
   label_path: data/reconstruction/kinetics/train_label.pkl
 test_feeder_args:
   random_choose: False
   window_size: 10 
-  random_noise: False
+  random_noise: True
   data_path: data/reconstruction/kinetics/val_data.npy
   label_path: data/reconstruction/kinetics/val_label.pkl
 
@@ -29,7 +29,7 @@ model_args:
   window_size: 10
 
 # training
-device: [0]
+device: [0,1,2,3]
 batch_size: 256 
 test_batch_size: 256
 

@@ -1,4 +1,4 @@
-weights: pretrained_models/recognition/st_gcn.kinetics.pt
+weights: pretrained_models/reconstruction/kinetics_t10.pt
 
 # feeder
 feeder: feeder.feeder.Feeder

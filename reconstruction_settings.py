@@ -145,7 +145,8 @@ class ReconstructionSettings():
         self.epoch_info = dict()
         self.meta_info = dict(epoch=0, iter=0)
 
-    def get_parser(self):
+    @staticmethod
+    def get_parser(add_help=False):
 
         parser = argparse.ArgumentParser()
         parser.add_argument('-w', '--work_dir', default='./work_dir/tmp', help='the work folder for storing results')

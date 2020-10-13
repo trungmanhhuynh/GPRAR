@@ -128,9 +128,9 @@ def random_noise(data_numpy):
         missing_frames = np.asarray(random.choices(range(0, T), k=num_missing_frames), dtype=np.int)
 
         for t in missing_frames:
-            noisy_data[:, t, missing_nodes, i] = 0
+            data_numpy[:, t, missing_nodes, i] = 0
 
-    return noisy_data
+    return data_numpy
 
 
 def openpose_match(data_numpy):

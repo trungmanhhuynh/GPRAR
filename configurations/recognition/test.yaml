@@ -1,4 +1,4 @@
-weights: ./work_dir/recognition/kinetics_skeleton/ST_GCN/epoch5_model.pt
+weights: ./work_dir/recognition/kinetics_skeleton/ST_GCN/epoch10_model.pt
 
 # feeder
 feeder: feeder.feeder.Feeder

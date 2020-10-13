@@ -37,6 +37,10 @@ class Model(nn.Module):
         A = torch.tensor(self.graph.A, dtype=torch.float32, requires_grad=False)
         self.register_buffer('A', A)
 
+        self.graph1 = Graph(**graph_args)
+        A1 = torch.tensor(self.graph1.A, dtype=torch.float32, requires_grad=False)
+        self.register_buffer('A1', A1)
+
         # build networks
         spatial_kernel_size = A.size(0)
         temporal_kernel_size = 9
@@ -45,24 +49,24 @@ class Model(nn.Module):
 
         kwargs0 = {k: v for k, v in kwargs.items() if k != 'dropout'}
 
-        print("kwargs:", kwargs)
+        # print("kwargs:", kwargs)
         self.st_gcn_networks = nn.ModuleList((
             st_gcn(in_channels, 64, kernel_size, 1, residual=False, **kwargs0),
             st_gcn(64, 64, kernel_size, 1, **kwargs),
             st_gcn(64, 64, kernel_size, 1, **kwargs),
             st_gcn(64, 64, kernel_size, 1, **kwargs),
-            st_gcn(64, 128, kernel_size, 2, **kwargs),      # stride =2 originally
+            st_gcn(64, 128, kernel_size, 1, **kwargs),      # stride =2 originally
             st_gcn(128, 128, kernel_size, 1, **kwargs),
             st_gcn(128, 128, kernel_size, 1, **kwargs),
-            st_gcn(128, 256, kernel_size, 2, **kwargs),  # stride =2 originally
+            st_gcn(128, 256, kernel_size, 1, **kwargs),  # stride =2 originally
             st_gcn(256, 256, kernel_size, 1, **kwargs),
             st_gcn(256, 256, kernel_size, 1, **kwargs),
         ))
 
-        # calculate new window size
-        window_size = kwargs['window_size']
-        new_wsize = (window_size - 1) // 2 + 1
-        new_wsize = (new_wsize - 1) // 2 + 1
+        # # calculate new window size
+        # window_size = kwargs['window_size']
+        # new_wsize = (window_size - 1) // 2 + 1
+        # new_wsize = (new_wsize - 1) // 2 + 1
 
         # initialize parameters for edge importance weighting
         if edge_importance_weighting:
@@ -77,25 +81,58 @@ class Model(nn.Module):
         self.fcn = nn.Conv2d(256, num_class, kernel_size=1)
 
         # add reconstruction branch
-        self.reconstructor = nn.Sequential(
+        self.reconstructor = nn.ModuleList((
             rst_gcn(256, 128, kernel_size, 1, residual=False, **kwargs),
             rst_gcn(128, 64, kernel_size, 1, residual=True, **kwargs),
             rst_gcn(64, 64, kernel_size, 1, residual=True, **kwargs),
             rst_gcn(64, in_channels, kernel_size, 1, residual=True, **kwargs)
-        )
+        ))
 
         self.edge_importance_reconstruction = [1] * len(self.reconstructor)
 
-        output_padding = window_size - (new_wsize - 1) * 4 - 1
-        self.last_tcn = nn.ConvTranspose2d(
-            in_channels,
-            in_channels,
-            kernel_size=(1, 1),
-            stride=(4, 1),
-            output_padding=(output_padding, 0)               # output_padding = H_out - (H_in -1 )*stride - 1
-        )
+        # output_padding = window_size - (new_wsize - 1) * 4 - 1
+        # self.last_tcn = nn.ConvTranspose2d(
+        #     in_channels,
+        #     in_channels,
+        #     kernel_size=(1, 1),
+        #     stride=(4, 1),
+        #     output_padding=(output_padding, 0)               # output_padding = H_out - (H_in -1 )*stride - 1
+        # )
 
     def forward(self, x):
+
+        # data normalization
+        N, C, T, V, M = x.size()
+        x = x.permute(0, 4, 3, 1, 2).contiguous()  # N, M, V, C, T
+        x = x.view(N * M, V * C, T)
+        x = self.data_bn(x)
+        x = x.view(N, M, V, C, T)
+        x = x.permute(0, 1, 3, 4, 2).contiguous()
+        x = x.view(N * M, C, T, V)                 # ~ (N * M, C, T, V) (64, 3, 10, 18)
+
+        # forwad
+        for gcn, importance in zip(self.st_gcn_networks, self.edge_importance):
+            x, _ = gcn(x, self.A * importance)          # x ~ (N * M, C', T, V) (64, 256, 10, 18)
+
+        # global pooling
+        x1 = F.avg_pool2d(x, x.size()[2:])
+        x1 = x1.view(N, M, -1, 1, 1).mean(dim=1)
+
+        # prediction
+        x1 = self.fcn(x1)
+        x1 = x1.view(x1.size(0), -1)
+
+        # add a branch for reconstruction
+        for rst_gcn, importance in zip(self.reconstructor, self.edge_importance_reconstruction):
+            x, _ = rst_gcn(x, self.A1 * importance)         # x ~ (N * M, C', T, V) (64, 3, 10, 18)
+
+        # x2 = self.last_tcn(x2)
+        x2 = x.view(N, M, C, T, V)                # x ~ (N , M, C, T, V) (64, 1, 3, 10, 18)
+        x2 = x2.permute(0, 2, 3, 4, 1)  # x ~ (N , C, T, V, M) (64, 3, 10, 18, 1)
+
+        return x1, x2
+
+    def extract_feature(self, x):
 
         # data normalization
         N, C, T, V, M = x.size()
@@ -108,51 +145,24 @@ class Model(nn.Module):
 
         # forwad
         for gcn, importance in zip(self.st_gcn_networks, self.edge_importance):
-            x, _ = gcn(x, self.A * importance)          # x ~ (N * M, C', T, V) ([256, 256, 75, 18])
-
-        # global pooling
-        x1 = F.avg_pool2d(x, x.size()[2:])
-        x1 = x1.view(N, M, -1, 1, 1).mean(dim=1)
-
-        # prediction
-        x1 = self.fcn(x1)
-        x1 = x1.view(x1.size(0), -1)
-
-        # add a branch for reconstruction
-        x2 = x
-        for gcn, importance in zip(self.reconstructor, self.edge_importance_reconstruction):
-            x2, _ = gcn(x2, self.A * importance)
-
-        x2 = self.last_tcn(x2)
-
-        x2 = x2.view(N, M, C, T, V)                # x ~ (N * M, C', T, V) ([64*2, 3, 150, 18])
-        x2 = x2.permute(0, 2, 3, 4, 1).contiguous()
-
-        return x1, x2
-
-    def extract_feature(self, x):
-
-        # data normalization
-        N, C, T, V, M = x.size()
-        x = x.permute(0, 4, 3, 1, 2).contiguous()
-        x = x.view(N * M, V * C, T)
-        x = self.data_bn(x)
-        x = x.view(N, M, V, C, T)
-        x = x.permute(0, 1, 3, 4, 2).contiguous()
-        x = x.view(N * M, C, T, V)
-
-        # forwad
-        for gcn, importance in zip(self.st_gcn_networks, self.edge_importance):
-            x, _ = gcn(x, self.A * importance)
+            x, _ = gcn(x, self.A1 * importance)          # x ~ (N * M, C', T, V) ([256, 256, 75, 18])
 
         _, c, t, v = x.size()
         feature = x.view(N, M, c, t, v).permute(0, 2, 3, 4, 1)
 
         # prediction
-        x = self.fcn(x)
-        output = x.view(N, M, -1, t, v).permute(0, 2, 3, 4, 1)
+        x1 = self.fcn(x)
+        x1 = x1.view(N, M, -1, t, v).permute(0, 2, 3, 4, 1)
 
-        return output, feature
+        # add a branch for reconstruction
+        for rst_gcn, importance in zip(self.reconstructor, self.edge_importance_reconstruction):
+            x, _ = rst_gcn(x, self.A1 * importance)         # x ~ (N * M, C', T, V) (64, 3, 10, 18)
+
+        # x2 = self.last_tcn(x2)
+        x2 = x.view(N, M, C, T, V)                # x ~ (N , M, C, T, V) (64, 1, 3, 10, 18)
+        x2 = x2.permute(0, 2, 3, 4, 1)  # x ~ (N , C, T, V, M) (64, 3, 10, 18, 1)
+
+        return x1, x2, feature
 
 
 class st_gcn(nn.Module):
@@ -235,7 +245,7 @@ class st_gcn(nn.Module):
         x, A = self.gcn(x, A)           # A.shape (3,18,18)
         x = self.tcn(x) + res
 
-        return self.relu(x), A
+        return x, A
 
 
 class rst_gcn(nn.Module):
@@ -321,4 +331,4 @@ class rst_gcn(nn.Module):
         x, A = self.gcn(x, A)
         x = self.tcn(x) + res
 
-        return self.relu(x), A
+        return x, A

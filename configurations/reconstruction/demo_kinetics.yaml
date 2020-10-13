@@ -1,4 +1,4 @@
-weights: pretrained_models/reconstruction/kinetics_t10.pt
+weights: ./work_dir/reconstruction/kinetics/epoch50_model.pt
 
 # feeder
 feeder: feeder.feeder_reconstruction.Feeder
@@ -8,6 +8,7 @@ test_feeder_args:
   random_noise: True
   data_path: data/reconstruction/kinetics/val_data.npy
   label_path: data/reconstruction/kinetics/val_label.pkl
+
 
 # model
 model: net.rst_gcn_kinetics.Model
@@ -23,5 +24,6 @@ model_args:
 
 # test 
 phase: test
-device: [0, 1, 2, 3]
-test_batch_size: 64
+device: [0]
+test_batch_size: 1
+res_video_dir: results/reconstruction/kinetics/video
