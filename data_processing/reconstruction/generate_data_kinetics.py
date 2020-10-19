@@ -25,8 +25,10 @@ def end_toolbar():
 
 def generate_data(args, mode):
     """
-
         mode: train of val
+        output:
+            - fp: numpy array of shape (N, C, T, V, 1) --> written to *.npy file
+            - label: list of N samples --> writting to *.json file 
     """
 
     # read data and label

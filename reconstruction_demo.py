@@ -44,7 +44,7 @@ class ReconstructionDemo(ReconstructionSettings):
             voting_label_name, video_label_name, output, intensity, recOut = self.predict(noisy_data)
 
             # reconstruction video
-            images = self.render_video_v2(noisy_data.squeeze(0), recOut.squeeze(0), voting_label_name,
+            images = self.render_video_v2(noisy_data.squeeze(0), recOut.squeeze(0), data.squeeze(0), voting_label_name,
                                           video_label_name, intensity, video=None)
 
             if(self.arg.gen_video):
@@ -115,10 +115,11 @@ class ReconstructionDemo(ReconstructionSettings):
         )
         return images
 
-    def render_video_v2(self, data_in, data_rec, voting_label_name, video_label_name, intensity, video):
+    def render_video_v2(self, data_in, data_rec,data_gt, voting_label_name, video_label_name, intensity, video):
         images = utils.visualization.stgcn_visualize_v2(
             data_in,
             data_rec,
+            data_gt,
             self.model.graph.edge,
             intensity, video,
             voting_label_name,

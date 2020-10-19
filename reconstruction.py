@@ -99,6 +99,7 @@ class Reconstruction(ReconstructionSettings):
         loss_value, loss_reg_value, loss_rec_value = [], [], []
         result_frag = []
         label_frag = []
+        meanADE = []
 
         for noisy_data, data, label in loader:
 
@@ -107,20 +108,11 @@ class Reconstruction(ReconstructionSettings):
             data = data.float().to(self.dev)
             label = label.long().to(self.dev)
 
-            # print("noisy_data")
-            # print(noisy_data[0, :, 1, :, 0])
-            # print("data")
-            # print(data[0, :, 1, :, 0])
-
             # inference
             with torch.no_grad():
                 output_reg, output_rec = self.model(noisy_data)
             result_frag.append(output_reg.data.cpu().numpy())
 
-            # print("output_rec")
-            # print(output_rec[1, :, 1, :, 0])  # (N , C, T, V, M)
-
-            # input("here")
             # get loss
             if evaluation:
                 lossReg = self.lossReg(output_reg, label)
@@ -129,8 +121,10 @@ class Reconstruction(ReconstructionSettings):
                 loss_value.append(loss.item())
                 loss_rec_value.append(lossRec.item())
                 loss_reg_value.append(lossReg.item())
-
                 label_frag.append(label.data.cpu().numpy())
+
+                ade = self.cal_ade(output_rec.data.cpu().numpy(), data.data.cpu().numpy())
+                meanADE.append(ade)
 
         self.result = np.concatenate(result_frag)
         if evaluation:
@@ -138,6 +132,8 @@ class Reconstruction(ReconstructionSettings):
             self.epoch_info['mean_loss_rec'] = np.mean(loss_rec_value)
             self.epoch_info['mean_loss_reg'] = np.mean(loss_reg_value)
             self.epoch_info['mean_loss'] = np.mean(loss_value)
+            self.epoch_info['ade'] = np.mean(meanADE)
+
             self.show_epoch_info()
 
             # show top-k accuracy
@@ -179,3 +175,22 @@ class Reconstruction(ReconstructionSettings):
             self.lr = lr
         else:
             self.lr = self.arg.base_lr
+
+    def cal_ade(self, pose_res, pose_gt):
+
+        # input shape ~ (N, C, T, V , M)
+
+        # print(pose_res.shape)
+        # print(pose_gt.shape)
+        # input("here")
+        # convert to pixels
+        pose_res[:, 0, :, :, :] = (pose_res[:, 0, :, :, :] + 0.5) * self.arg.W  # x
+        pose_res[:, 1, :, :, :] = (pose_res[:, 1, :, :, :] + 0.5) * self.arg.H  # y
+        pose_gt[:, 0, :, :, :] = (pose_gt[:, 0, :, :, :] + 0.5) * self.arg.W # x
+        pose_gt[:, 1, :, :, :] = (pose_gt[:, 1, :, :, :] + 0.5) * self.arg.H # y
+
+        temp=(pose_res[:, 0:2, :, :, :] - pose_gt[:, 0:2, :, :, :])**2
+        ade=np.sqrt(temp[:, 0, :, :, :] + temp[:, 1, :, :, :])
+        ade=np.mean(ade)
+
+        return ade

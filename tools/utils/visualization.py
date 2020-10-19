@@ -142,6 +142,7 @@ def stgcn_visualize(pose,
 
 def stgcn_visualize_v2(pose,
                        pose_rec,
+                       pose_gt,
                        edge,
                        feature,
                        video=None,
@@ -157,7 +158,7 @@ def stgcn_visualize_v2(pose,
         if video is not None:
             frame = video[t]
         else:
-            frame = np.zeros(shape=[512, 512, 3], dtype=np.uint8)
+            frame = np.ones(shape=[512, 512, 3], dtype=np.uint8)    # white background
 
         # image resize
         H, W, c = frame.shape
@@ -166,7 +167,7 @@ def stgcn_visualize_v2(pose,
         scale_factor = 2 * height / 1080
 
         # draw skeleton in
-        skeleton = frame * 0
+        skeleton = frame * 255
         text = frame * 0
         for m in range(M):
 
@@ -186,8 +187,8 @@ def stgcn_visualize_v2(pose,
                     yi = int((yi + 0.5) * H)
                     xj = int((xj + 0.5) * W)
                     yj = int((yj + 0.5) * H)
-                cv2.line(skeleton, (xi, yi), (xj, yj), (255, 255, 255),
-                         int(np.ceil(2 * scale_factor)))
+                cv2.line(skeleton, (xi, yi), (xj, yj), (0, 0, 0),
+                         int(np.ceil(2 * scale_factor)))  # noisy pose in black
 
             if label_sequence is not None:
                 body_label = label_sequence[t // 4][m]
@@ -211,7 +212,7 @@ def stgcn_visualize_v2(pose,
                         (255, 255, 255))
 
         # draw skeleton rec
-        skeleton_rec = frame * 0
+        skeleton_rec = frame * 255
         text = frame * 0
         for m in range(M):
 
@@ -231,8 +232,8 @@ def stgcn_visualize_v2(pose,
                     yi = int((yi + 0.5) * H)
                     xj = int((xj + 0.5) * W)
                     yj = int((yj + 0.5) * H)
-                cv2.line(skeleton_rec, (xi, yi), (xj, yj), (255, 255, 255),
-                         int(np.ceil(2 * scale_factor)))
+                cv2.line(skeleton_rec, (xi, yi), (xj, yj), (0, 0, 255),
+                         int(np.ceil(2 * scale_factor)))   # reconstructed pose in blue
 
             if label_sequence is not None:
                 body_label = label_sequence[t // 4][m]
@@ -255,8 +256,53 @@ def stgcn_visualize_v2(pose,
                         cv2.FONT_HERSHEY_TRIPLEX, 0.5 * scale_factor,
                         (255, 255, 255))
 
+        # draw skeleton gt
+        skeleton_gt = frame * 255
+        text = frame * 0
+        for m in range(M):
+
+            score = pose_gt[2, t, :, m].max()
+            if score < 0.3:
+                continue
+
+            for i, j in edge:
+                xi = pose_gt[0, t, i, m]
+                yi = pose_gt[1, t, i, m]
+                xj = pose_gt[0, t, j, m]
+                yj = pose_gt[1, t, j, m]
+                if xi + yi == 0 or xj + yj == 0:
+                    continue
+                else:
+                    xi = int((xi + 0.5) * W)
+                    yi = int((yi + 0.5) * H)
+                    xj = int((xj + 0.5) * W)
+                    yj = int((yj + 0.5) * H)
+                cv2.line(skeleton_gt, (xi, yi), (xj, yj), (255, 0, 0),
+                         int(np.ceil(2 * scale_factor)))  # gt pose in red
+
+            if label_sequence is not None:
+                body_label = label_sequence[t // 4][m]
+            else:
+                body_label = ''
+            x_nose = int((pose_gt[0, t, 0, m] + 0.5) * W)
+            y_nose = int((pose_gt[1, t, 0, m] + 0.5) * H)
+            x_neck = int((pose_gt[0, t, 1, m] + 0.5) * W)
+            y_neck = int((pose_gt[1, t, 1, m] + 0.5) * H)
+
+            half_head = int(((x_neck - x_nose)**2 + (y_neck - y_nose)**2)**0.5)
+            pos = (x_nose + half_head, y_nose - half_head)
+            if pos_track[m] is None:
+                pos_track[m] = pos
+            else:
+                new_x = int(pos_track[m][0] + (pos[0] - pos_track[m][0]) * 0.2)
+                new_y = int(pos_track[m][1] + (pos[1] - pos_track[m][1]) * 0.2)
+                pos_track[m] = (new_x, new_y)
+            cv2.putText(text, body_label, pos_track[m],
+                        cv2.FONT_HERSHEY_TRIPLEX, 0.5 * scale_factor,
+                        (255, 255, 255))
+
         # generate mask
-        mask = frame * 0
+        mask = frame
         feature = np.abs(feature)
         feature = feature / feature.mean()
         for m in range(M):
@@ -293,6 +339,7 @@ def stgcn_visualize_v2(pose,
 
         put_text(skeleton, 'noisy pose', (0.15, 0.5))
         put_text(skeleton_rec, 'reconstructed pose', (0.15, 0.5))
+        put_text(skeleton_gt, 'gt pose', (0.15, 0.5))
 
         text_1 = cv2.imread(
             './resource/demo_asset/original_pose.png', cv2.IMREAD_UNCHANGED)
@@ -319,7 +366,7 @@ def stgcn_visualize_v2(pose,
             put_text(skeleton, 'fps:{:.2f}'.format(fps), (0.9, 0.5))
 
         img0 = np.concatenate((skeleton, skeleton_rec), axis=1)
-        img1 = np.concatenate((skeleton_result, rgb_result), axis=1)
+        img1 = np.concatenate((skeleton_result, skeleton_gt), axis=1)
         img = np.concatenate((img0, img1), axis=0)
 
         yield img
@@ -332,7 +379,7 @@ def put_text(img, text, position, scale_factor=1):
     position = (int(W * position[1] - t_w * 0.5),
                 int(H * position[0] - t_h * 0.5))
     params = (position, cv2.FONT_HERSHEY_TRIPLEX, scale_factor,
-              (255, 255, 255))
+              (0, 0, 0))
     cv2.putText(img, text, *params)
 
 

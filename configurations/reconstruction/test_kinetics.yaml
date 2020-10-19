@@ -1,4 +1,4 @@
-weights: pretrained_models/reconstruction/kinetics_t10.pt
+weights: ./work_dir/reconstruction/kinetics/epoch50_model.pt
 
 # feeder
 feeder: feeder.feeder_reconstruction.Feeder

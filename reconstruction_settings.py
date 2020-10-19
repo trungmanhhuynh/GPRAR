@@ -68,6 +68,9 @@ class ReconstructionSettings():
         Feeder = import_class(self.arg.feeder)
         if 'debug' not in self.arg.train_feeder_args:
             self.arg.train_feeder_args['debug'] = self.arg.debug
+        if 'debug' not in self.arg.test_feeder_args:
+            self.arg.test_feeder_args['debug'] = self.arg.debug
+
         self.data_loader = dict()
         if self.arg.phase == 'train':
             self.data_loader['train'] = torch.utils.data.DataLoader(
@@ -185,6 +188,8 @@ class ReconstructionSettings():
 
         # evaluation
         parser.add_argument('--show_topk', type=int, default=[1, 5], nargs='+', help='which Top K accuracy will be shown')
+        parser.add_argument('--W', type=int, default=1080,help='frame width')
+        parser.add_argument('--H', type=int, default=1080,  help='frame height')
 
         # optim
         parser.add_argument('--base_lr', type=float, default=0.01, help='initial learning rate')
