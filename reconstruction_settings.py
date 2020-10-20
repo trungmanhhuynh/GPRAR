@@ -188,8 +188,8 @@ class ReconstructionSettings():
 
         # evaluation
         parser.add_argument('--show_topk', type=int, default=[1, 5], nargs='+', help='which Top K accuracy will be shown')
-        parser.add_argument('--W', type=int, default=1080,help='frame width')
-        parser.add_argument('--H', type=int, default=1080,  help='frame height')
+        parser.add_argument('--W', type=int, default=1080, help='frame width')
+        parser.add_argument('--H', type=int, default=1080, help='frame height')
 
         # optim
         parser.add_argument('--base_lr', type=float, default=0.01, help='initial learning rate')
