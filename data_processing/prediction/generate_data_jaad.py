@@ -6,6 +6,7 @@ from itertools import islice
 from sklearn.impute import KNNImputer
 from numpy.lib.format import open_memmap
 import argparse
+import csv
 
 
 def chunks(data, traj_len=20, slide=1):
@@ -17,7 +18,7 @@ def chunks(data, traj_len=20, slide=1):
 def impute_poses(poses):
     """
             interplote poses
-            input: poses ~ [traj_len, 75]  : 75 is 25*3, 25 keypoints, 3: x,y,c 
+            input: poses ~ [traj_len, 75]  : 75 is 25*3, 25 keypoints, 3: x,y,c
             ouput: imputed_poses ~ [traj_len, 75]
     """
 
@@ -38,13 +39,13 @@ def impute_poses(poses):
 def generate_samples(video_data, video_name, args):
     '''
         Input:
-            + video_data: a dictionary 
+            + video_data: a dictionary
                 'image_name'(str):{
                         'people': [
                                 {'person_id': (str)
-                                'pose'  : list}]}   
-        Output: 
-            extract samples for each video. Each sample has the following dict structure: 
+                                'pose'  : list}]}
+        Output:
+            extract samples for each video. Each sample has the following dict structure:
             {
                     'video_names': [traj_len]
                     'image_names': [traj_len]
@@ -54,8 +55,16 @@ def generate_samples(video_data, video_name, args):
                     'bboxes':  list ~ [traj_len, 4]
             }
     '''
-    video_samples, video_names, image_name_out = [], [], []
+    pose_seqs, video_names, image_name_out = [], [], []
     action_label_out, action_index_out = [], []
+    location_seqs, gridflow_seqs = [], []
+
+    # read video_info for frame width and height
+    video_info = {}
+    with open(args.video_info_fn, 'r') as data:
+        for line in csv.reader(data):
+            video_info[line[0]] = [line[1], line[2]]
+
     # find list of pedestrian id
     id_list = []
     for image_name in video_data:
@@ -68,17 +77,22 @@ def generate_samples(video_data, video_name, args):
 
         # extract whole trajectory of a pedestrian in video
         long_poses, long_image_names, long_action_indexes, long_action_labels = [], [], [], []
+        long_locations, long_gridflow = [], []
         for image_name in video_data:
             for person in video_data[image_name]["people"]:
                 if(person['person_id'] == pid):
+                    long_locations.append(person['location'])
                     long_poses.append(person['pose'])
                     long_image_names.append(image_name)
                     long_action_labels.append(person['action_label'])
                     long_action_indexes.append(person['action_index'])
+                    long_gridflow.append(person['gridflow'])
 
         # split trajectories into chunk of pre-defined trajectory length
-        for poses, image_names, action_labels, action_indexes in zip(
+        for locations, poses, gridflow, image_names, action_labels, action_indexes in zip(
+                chunks(long_locations, traj_len=args.traj_len, slide=args.slide),
                 chunks(long_poses, traj_len=args.traj_len, slide=args.slide),
+                chunks(long_gridflow, traj_len=args.traj_len, slide=args.slide),
                 chunks(long_image_names, traj_len=args.traj_len, slide=args.slide),
                 chunks(long_action_labels, traj_len=args.traj_len, slide=args.slide),
                 chunks(long_action_indexes, traj_len=args.traj_len, slide=args.slide)):
@@ -101,18 +115,35 @@ def generate_samples(video_data, video_name, args):
             if(gap > args.traj_len):
                 continue
 
-            # skip if pose is not complete
-            if 0 in sum(poses,[]):
-                continue
+            # impute data 
+
+
+            # normalize poses
+            poses = np.array(poses)  # (T,  num_keypoints*3)
+            poses[:, 0::3] = poses[:, 0::3] / float(video_info[video_name][0])  # normalize x by frame width
+            poses[:, 1::3] = poses[:, 1::3] / float(video_info[video_name][1])  # normalize y by frame height
+            poses[:, 0::3] = poses[:, 0::3] - 0.5  # centralize
+            poses[:, 1::3] = poses[:, 1::3] - 0.5  # centralize
+            poses[:, 0::3][poses[:, 2::3] == 0] = 0
+            poses[:, 1::3][poses[:, 2::3] == 0] = 0
+
+            # normalize locations
+            locations = np.array(locations)  # (traj_len, 2)
+            locations[:, 0] = locations[:, 0] / float(video_info[video_name][0])
+            locations[:, 1] = locations[:, 1] / float(video_info[video_name][1])
+            locations[:, 0] = locations[:, 0] - 0.5
+            locations[:, 1] = locations[:, 1] - 0.5
 
             # add to sample list
-            video_samples.append(poses)
+            location_seqs.append(locations.tolist())
+            pose_seqs.append(poses.tolist())
+            gridflow_seqs.append(gridflow)
             video_names.append(video_name)
             image_name_out.append(image_names[0])       # keep first image name for meta-data
             action_label_out.append(action_labels[0])
             action_index_out.append(action_indexes[0])
 
-    return video_samples, video_names, image_name_out, action_label_out, action_index_out
+    return location_seqs, pose_seqs, gridflow_seqs, video_names, image_name_out, action_label_out, action_index_out
 
 
 def generate_data(args, mode):
@@ -130,8 +161,9 @@ def generate_data(args, mode):
     if(args.debug):
         video_dir = video_dir[:10]                                  # use 10 videos for debug
 
-    all_samples, all_video_names, all_image_names = [], [], []
+    all_pose_seqs, all_video_names, all_image_names = [], [], []
     all_action_labels, all_action_indexes = [], []
+    all_gridflow_seqs, all_location_seqs = [], []
     for video_name in video_dir:
         print("processing video: ", video_name)
 
@@ -139,67 +171,84 @@ def generate_data(args, mode):
         video_data = {}
         for frame_number in range(len(os.listdir(os.path.join(args.pose_path, video_name))) - 1):
             # -1 because there is no gridflow data for the last frame
+
+            with open(os.path.join(args.location_path, video_name, "{:05d}_locations.json".format(frame_number)), "r") as f:
+                location_data = json.load(f)
             with open(os.path.join(args.pose_path, video_name, "{:05d}_keypoints.json".format(frame_number)), "r") as f:
                 pose_data = json.load(f)
+            with open(os.path.join(args.gridflow_path, video_name, "{:05d}_gridflow.json".format(frame_number)), "r") as f:
+                gridflow_data = json.load(f)
 
             image_name = "{:05d}.png".format(frame_number)
             video_data[image_name] = {'people': []}
             for ped in pose_data['people']:
                 if(ped['person_id'][0] == -1):
                     continue  # skip ped withput id
+
+                temp_location = []
+                for p_in_loc in location_data['people']:
+                    if(ped['person_id'] == p_in_loc['person_id']):
+                        temp_location = p_in_loc['center']
+
+                if not temp_location:
+                    continue
+
                 video_data[image_name]['people'].append({'person_id': ped['person_id'],
+                                                         'location': temp_location,
                                                          'pose': ped['pose_keypoints_2d'],
+                                                         'gridflow': gridflow_data[str(int(frame_number))],
                                                          'action_label': ped['action_label'],
                                                          'action_index': ped['action_index']
                                                          })
 
         # extract trajectory within a video
-        video_samples, video_names, image_names, action_labels, action_indexes = generate_samples(video_data, video_name, args)
+        location_seqs, pose_seqs, gridflow_seqs, video_names, image_names, action_labels, action_indexes = generate_samples(video_data, video_name, args)
 
-        all_samples.append(video_samples)
+        all_location_seqs.append(location_seqs)
+        all_pose_seqs.append(pose_seqs)
+        all_gridflow_seqs.append(gridflow_seqs)
         all_video_names.append(video_names)
         all_image_names.append(image_names)
         all_action_labels.append(action_labels)
         all_action_indexes.append(action_indexes)
 
     # convert data to numpy array of shape (N, C, T, V, 1)
-    all_samples = np.array(sum(all_samples, []))   # (N, T, V*C)
+    all_location_seqs = np.array(sum(all_location_seqs, []))   # (N, T, 2)
+    all_pose_seqs = np.array(sum(all_pose_seqs, []))   # (N, T, V*C)
+    all_gridflow_seqs = np.array(sum(all_gridflow_seqs, []))   # (N, T, 24)
     all_video_names = sum(all_video_names, [])
     all_image_names = sum(all_image_names, [])
     all_action_labels = sum(all_action_labels, [])
     all_action_indexes = sum(all_action_indexes, [])
 
-    N, T, _ = all_samples.shape
+    # print(all_location_seqs.shape)
+    # input("here")
+
+    N, T, _ = all_pose_seqs.shape
     if(args.pose_18):
-        all_samples = all_samples.reshape(N, T, 18, 3)       # (N, T, V, C)
+        all_pose_seqs = all_pose_seqs.reshape(N, T, 18, 3)       # (N, T, V, C)
     if(args.pose_25):
-        all_samples = all_samples.reshape(N, T, 25, 3)
-    all_samples = np.expand_dims(all_samples.transpose(0, 3, 1, 2), axis=4)   # (N, C, T, V, 1)
+        all_pose_seqs = all_pose_seqs.reshape(N, T, 25, 3)
+    all_pose_seqs = np.expand_dims(all_pose_seqs.transpose(0, 3, 1, 2), axis=4)   # (N, C, T, V, 1)
 
-    # normalize data
-    all_samples[:, 0, :, :, :] = all_samples[:, 0, :, :, :] / args.width  # normalize x
-    all_samples[:, 1, :, :, :] = all_samples[:, 1, :, :, :] / args.height  # normalize x
-    all_samples[:, 0:2, :, :, :] = all_samples[:, 0:2, :, :, :] - 0.5  # centralize
-    all_samples[:, 0, :, :, :][all_samples[:, 2, :, :, :] == 0] = 0
-    all_samples[:, 1, :, :, :][all_samples[:, 2, :, :, :] == 0] = 0
+    # normalize gridflow
+    all_gridflow_seqs = all_gridflow_seqs.reshape(N * T, 24)
+    all_gridflow_seqs = (all_gridflow_seqs - all_gridflow_seqs.mean(axis=0)) / all_gridflow_seqs.var(axis=0)
+    all_gridflow_seqs = all_gridflow_seqs.reshape(N, T, 24)
 
-    #--- write to file
+    # write to file
     if not os.path.exists(os.path.join(args.out_folder)):
         os.makedirs(os.path.join(args.out_folder))
-    data_file = os.path.join(args.out_folder, "{}_data.npy".format(mode))
-    fp = open_memmap(
-        data_file,
-        dtype='float32',
-        mode='w+',
-        shape=all_samples.shape)
-    fp[...] = all_samples
+    data_file = os.path.join(args.out_folder, "{}_data.pkl".format(mode))
+    with open(data_file, 'wb') as f:
+        pickle.dump((all_location_seqs, all_pose_seqs, all_gridflow_seqs), f)
 
     metadata_file = os.path.join(args.out_folder, "{}_metadata.pkl".format(mode))
     with open(metadata_file, 'wb') as f:
         pickle.dump((all_video_names, all_image_names, all_action_labels, all_action_indexes), f)
 
     print("number of video used: {}".format(len(video_dir)))
-    print("data shape: {}".format(fp.shape))
+    print("pose shape: {}".format(all_pose_seqs.shape))
     print("total number of samples walking: {}".format(len([i for i in all_action_labels if i == 'walking'])))
     print("total number of samples standing: {}".format(len([i for i in all_action_labels if i == 'standing'])))
 
@@ -227,23 +276,25 @@ def test_KNNImputer():
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
-        description='Generate train/val data for reconstruction on jaad')
+        description='Generate train/val data for prediction on jaad')
     parser.add_argument(
-        '--pose_path', default='data/features/jaad/pose_18_id')
+        '--video_info_fn', default='../datasets/processed_data/features/jaad/video_info.csv')
     parser.add_argument(
-        '--out_folder', default='data/reconstruction/jaad/')
+        '--location_path', default='../datasets/processed_data/features/jaad/location')
+    parser.add_argument(
+        '--pose_path', default='../datasets/processed_data/features/jaad/pose_18_id')
+    parser.add_argument(
+        '--gridflow_path', default='../datasets/processed_data/features/jaad/gridflow')
+    parser.add_argument(
+        '--out_folder', default='../datasets/processed_data/prediction/jaad/')
     parser.add_argument(
         '--pose_18', action="store_true", default=True, help='by default, using 18 keypoints')
     parser.add_argument(
         '--pose_25', action="store_true", default=False, help='by default, using 25 keypoints')
     parser.add_argument(
-        '--traj_len', type=int, default=10, help='trajectory len')
+        '--traj_len', type=int, default=20, help='trajectory len')
     parser.add_argument(
         '--slide', type=int, default=1, help='gap between trajectory')
-    parser.add_argument(
-        '--width', type=float, default=1920, help='default frame_width given by jadd dataset')
-    parser.add_argument(
-        '--height', type=float, default=1920, help='default frame_height given by jadd dataset')
     parser.add_argument(
         '--debug', action="store_true", default=False, help='debug mode')
     args = parser.parse_args()

@@ -37,10 +37,11 @@ def generate_frame_data(args, JAAD):
         video_data = jaad_data[video]
         ped_annotations = video_data['ped_annotations']
 
+        print(video_data['width'], 'x', video_data['height'])
         # count number of pedestrians.
         for ped_id in ped_annotations:
             if 'b' in ped_id:
-                total_peds += 1 
+                total_peds += 1
 
         # gen data in each frame
         for search_frame in range(video_data['num_frames']):
@@ -49,9 +50,6 @@ def generate_frame_data(args, JAAD):
             frame_data['width'] = video_data['width']
             frame_data['height'] = video_data['height']
             frame_data['people'] = []
-            print(frame_data['width'] )
-            print(frame_data['width'] )
-            input("here")
 
             for ped_id in ped_annotations:
 

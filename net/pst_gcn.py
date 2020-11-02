@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 
 from net.utils.tgcn import ConvTemporalGraphical
 from net.utils.graph import Graph
+from net.utils.conv2d import conv2d
+from net.utils.deconv2d import deconv2d
 
 
 class Model(nn.Module):
@@ -27,16 +28,17 @@ class Model(nn.Module):
             :math:`M_{in}` is the number of instance in a frame.
     """
 
-    def __init__(self, in_channels, num_class, graph_args,
-                 edge_importance_weighting, **kwargs):
+    def __init__(self, obs_len, pred_len, loc_feats, pose_feats, flow_feats, num_keypoints,
+                 graph_args, edge_importance_weighting, **kwargs):
         super().__init__()
 
-        # load graph
+        self.loc_feats = loc_feats
+        self.pose_feats = pose_feats
 
+        # load graph
         self.graph = Graph(**graph_args)
         A = torch.tensor(self.graph.A, dtype=torch.float32, requires_grad=False)
         self.register_buffer('A', A)
-
         self.graph1 = Graph(**graph_args)
         A1 = torch.tensor(self.graph1.A, dtype=torch.float32, requires_grad=False)
         self.register_buffer('A1', A1)
@@ -45,13 +47,13 @@ class Model(nn.Module):
         spatial_kernel_size = A.size(0)
         temporal_kernel_size = 9
         kernel_size = (temporal_kernel_size, spatial_kernel_size)
-        self.data_bn = nn.BatchNorm1d(in_channels * A.size(1))
+        self.data_bn = nn.BatchNorm1d(pose_feats * A.size(1))
 
         kwargs0 = {k: v for k, v in kwargs.items() if k != 'dropout'}
 
         # print("kwargs:", kwargs)
         self.st_gcn_networks = nn.ModuleList((
-            st_gcn(in_channels, 64, kernel_size, 1, residual=False, **kwargs0),
+            st_gcn(self.pose_feats, 64, kernel_size, 1, residual=False, **kwargs0),
             st_gcn(64, 64, kernel_size, 1, **kwargs),
             st_gcn(64, 64, kernel_size, 1, **kwargs),
             st_gcn(64, 64, kernel_size, 1, **kwargs),
@@ -63,11 +65,6 @@ class Model(nn.Module):
             st_gcn(256, 256, kernel_size, 1, **kwargs),
         ))
 
-        # # calculate new window size
-        # window_size = kwargs['window_size']
-        # new_wsize = (window_size - 1) // 2 + 1
-        # new_wsize = (new_wsize - 1) // 2 + 1
-
         # initialize parameters for edge importance weighting
         if edge_importance_weighting:
             self.edge_importance = nn.ParameterList([
@@ -77,29 +74,25 @@ class Model(nn.Module):
         else:
             self.edge_importance = [1] * len(self.st_gcn_networks)
 
-        # fcn for prediction
-        self.fcn = nn.Conv2d(256, num_class, kernel_size=1)
-
         # add reconstruction branch
         self.reconstructor = nn.ModuleList((
             rst_gcn(256, 128, kernel_size, 1, residual=False, **kwargs),
             rst_gcn(128, 64, kernel_size, 1, residual=True, **kwargs),
             rst_gcn(64, 64, kernel_size, 1, residual=True, **kwargs),
-            rst_gcn(64, in_channels, kernel_size, 1, residual=True, **kwargs)
+            rst_gcn(64, self.pose_feats, kernel_size, 1, residual=True, **kwargs)
         ))
 
         self.edge_importance_reconstruction = [1] * len(self.reconstructor)
 
-        # output_padding = window_size - (new_wsize - 1) * 4 - 1
-        # self.last_tcn = nn.ConvTranspose2d(
-        #     in_channels,
-        #     in_channels,
-        #     kernel_size=(1, 1),
-        #     stride=(4, 1),
-        #     output_padding=(output_padding, 0)               # output_padding = H_out - (H_in -1 )*stride - 1
-        # )
+        # predictor
+        self.predictor = Predictor(obs_len=obs_len,
+                                   pred_len=pred_len,
+                                   num_keypoints=num_keypoints,
+                                   pose_feats=pose_feats,
+                                   loc_feats=loc_feats,
+                                   flow_feats=flow_feats)
 
-    def forward(self, x):
+    def forward(self, obs_loc, x, flow_in):
 
         # data normalization
         N, C, T, V, M = x.size()
@@ -108,29 +101,34 @@ class Model(nn.Module):
         x = self.data_bn(x)
         x = x.view(N, M, V, C, T)
         x = x.permute(0, 1, 3, 4, 2).contiguous()
-        x = x.view(N * M, C, T, V)                 # ~ (N * M, C, T, V) (64, 3, 10, 18)
+        x = x.view(N * M, C, T, V)                 # ~ (N * M, C, T, V)
 
         # forwad
         for gcn, importance in zip(self.st_gcn_networks, self.edge_importance):
-            x, _ = gcn(x, self.A * importance)          # x ~ (N * M, C', T, V) (64, 256, 10, 18)
+            x, _ = gcn(x, self.A * importance)          # x ~ (N * M, C', T, V)
+
+        _, c, t, v = x.size()
+        action_in = x.view(N, M, c, t, v).permute(0, 2, 3, 4, 1)
 
         # global pooling
         x1 = F.avg_pool2d(x, x.size()[2:])
         x1 = x1.view(N, M, -1, 1, 1).mean(dim=1)
 
-        # prediction
-        x1 = self.fcn(x1)
-        x1 = x1.view(x1.size(0), -1)
-
-        # add a branch for reconstruction
+        # reconstruction branch
         for rst_gcn, importance in zip(self.reconstructor, self.edge_importance_reconstruction):
-            x, _ = rst_gcn(x, self.A1 * importance)         # x ~ (N * M, C', T, V) (64, 3, 10, 18)
+            x, _ = rst_gcn(x, self.A1 * importance)        # x ~ (N * M, C', T, V)
 
-        # x2 = self.last_tcn(x2)
-        x2 = x.view(N, M, C, T, V)                # x ~ (N , M, C, T, V) (64, 1, 3, 10, 18)
-        x2 = x2.permute(0, 2, 3, 4, 1)  # x ~ (N , C, T, V, M) (64, 3, 10, 18, 1)
+        x2 = x.view(N, M, C, T, V)                # x ~ (N , M, C, T, V)
+        x2 = x2.permute(0, 2, 3, 4, 1).contiguous()            # x ~ (N , C, T, V, M)
 
-        return x1, x2
+        # extract observed locations
+        left_hip = x2[:, :, :, 8, :]
+        right_hip = x2[:, :, :, 11, :]
+        traj_in = 0.5 * (left_hip + right_hip)
+
+        pred_locs = self.predictor(pose_in=x2, traj_in=traj_in, flow_in=flow_in, action_in=action_in)
+
+        return pred_locs
 
     def extract_feature(self, x):
 
@@ -332,3 +330,94 @@ class rst_gcn(nn.Module):
         x = self.tcn(x) + res
 
         return x, A
+
+
+class Predictor(nn.Module):
+    def __init__(self, obs_len, pred_len, num_keypoints, pose_feats, loc_feats, flow_feats):
+        super().__init__()
+
+        # init variables
+        self.pose_feats = pose_feats
+        self.loc_feats = loc_feats
+        self.output_feats = 2
+        self.obs_len = obs_len
+        self.pred_len = pred_len
+        self.num_keypoints = num_keypoints
+        self.flow_feats = flow_feats
+
+        # TCN for prediction
+        self.encoder_location = nn.Sequential(
+            conv2d(in_channels=self.loc_feats, out_channels=32, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=0)
+        )
+
+        self.encoder_pose = nn.Sequential(
+            conv2d(in_channels=self.pose_feats * self.num_keypoints, out_channels=32, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=0)
+        )
+
+        self.encoder_flow = nn.Sequential(
+            conv2d(in_channels=self.flow_feats, out_channels=32, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=0)
+        )
+
+        self.encoder_action = nn.Sequential(
+            conv2d(in_channels=256 * self.num_keypoints, out_channels=32, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=0)
+        )
+
+        self.intermediate = conv2d(in_channels=128 * 4, out_channels=128, kernel_size=1, stride=1, padding=0)
+
+        self.decoder = nn.Sequential(
+            conv2d(in_channels=128, out_channels=256, kernel_size=1, stride=1, padding=0),
+            conv2d(in_channels=256, out_channels=256, kernel_size=1, stride=1, padding=0),
+            deconv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0),
+            deconv2d(in_channels=256, out_channels=128, kernel_size=3, stride=1, padding=0),
+            deconv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=0),
+            deconv2d(in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=32, out_channels=2, kernel_size=1, stride=1, padding=0)
+        )
+
+    def forward(self, pose_in, traj_in, flow_in, action_in):
+        '''
+            pose_in (N, C=3, T, V, M)
+            traj_in (N, C=3, T, M)
+            flow_in (N, T, 24)
+            action_in (N, C=256, T, V, M)
+        '''
+        # reshape input features ~ (batch_size, in_channels, obs_len, 1)
+        N, CP, T, V, M = pose_in.size()
+        pose_in = pose_in.permute(0, 1, 3, 2, 4).contiguous()
+        pose_in = pose_in.view(N, CP * V, T, 1)
+
+        N, CA, T, V, M = action_in.size()
+        action_in = action_in.permute(0, 1, 3, 2, 4).contiguous()
+        action_in = action_in.view(N, CA * V, T, 1)
+
+        assert M == 1
+
+        flow_in = flow_in.permute(0, 2, 1)  # (N, 24, T)
+        flow_in = flow_in.unsqueeze(3)      # (N, 24, T, 1)
+
+        traj_y = self.encoder_location(traj_in)
+        pose_y = self.encoder_pose(pose_in)
+        flow_y = self.encoder_flow(flow_in)
+        action_y = self.encoder_action(action_in)
+
+        encoded_f = torch.cat((traj_y, pose_y, flow_y, action_y), dim=1)
+
+        y = self.intermediate(encoded_f)
+        y = self.decoder(y)                          # y ~ (batch_size, out_channels, pred_len , 1)
+
+        y = y.squeeze(3)
+        y = y.permute(0, 2, 1).contiguous()          # y ~ (batch_size, pred_len, out_channels)
+
+        return y

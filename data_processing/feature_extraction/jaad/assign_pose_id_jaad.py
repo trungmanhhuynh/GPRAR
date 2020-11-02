@@ -10,15 +10,38 @@ def generate_cost_matrix(pose_data, location_data):
 
     # Extract center position of all pedestrian within a frame
     # from pose data and location data
+
     pose_center = []
+    pose_location = np.zeros(2)
     for ped in pose_data["people"]:
-        pose_center_x = 0.5 * (ped['pose_keypoints_2d'][24] + ped['pose_keypoints_2d'][33])  # mid hip - index 8 in keypoints
-        pose_center_y = 0.5 * (ped['pose_keypoints_2d'][25] + ped['pose_keypoints_2d'][34])
-        pose_center.append([pose_center_x, pose_center_y])
+        pose = np.array(ped['pose_keypoints_2d'])
+
+        left_hip = pose[24:26]
+        right_hip = pose[33:35]
+        num_keypoints = 18
+        visible_keypt = 0
+
+        assert num_keypoints == len(ped['pose_keypoints_2d']) / 3
+
+        if(0 not in left_hip and 0 not in right_hip):
+            pose_location = 0.5 * (right_hip + left_hip)
+        elif(0 not in left_hip):
+            pose_location = left_hip
+        elif(0 not in right_hip):
+            pose_location = right_hip
+        else:
+            # average all visible keypoints for center location
+            for k in range(0, num_keypoints):
+                if(0 not in pose[k * 3:(k + 1) * 3]):
+                    visible_keypt += 1
+                    pose_location += pose[k * 3:k * 3 + 2]
+            pose_location = pose_location / visible_keypt
+
+        pose_center.append(pose_location)
 
     location_center = []
     for ped in location_data['people']:
-        location_center.append(ped['center'])
+        location_center.append(np.array(ped['center']))
 
     # build cost matrix as a numpy array ~ (num_pose, num_gt_ped)
     num_pose = len(pose_center)
@@ -68,6 +91,11 @@ def generate_pose_id(args):
                 indexes = m.compute(cost_matrix)  # (pose_idx, actual_person_id)
 
                 for row, col in indexes:
+
+                    # avoid false assignment when the distance is big
+                    if(cost_matrix[row][col] > 100):
+                        continue
+
                     # ped_id of pose at row matched with location at col
                     pose_data["people"][row]['person_id'] = location_data['people'][col]['person_id']
                     pose_data["people"][row]['action_label'] = location_data['people'][col]['action_label']  # also add action label
@@ -134,11 +162,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Assign id to pose data')
     parser.add_argument(
-        '--pose_path', default='data/features/jaad/pose_18')
+        '--pose_path', default='../datasets/processed_data/features/jaad/pose_18')
     parser.add_argument(
-        '--location_path', default='data/features/jaad/location')
+        '--location_path', default='../datasets/processed_data/features/jaad/location')
     parser.add_argument(
-        '--out_folder', default='data/features/jaad/pose_18_id')
+        '--out_folder', default='../datasets/processed_data/features/jaad/pose_18_id')
     parser.add_argument(
         '--debug', action="store_true", default=False, help='debug mode')
     args = parser.parse_args()
