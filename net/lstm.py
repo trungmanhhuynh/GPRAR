@@ -41,11 +41,6 @@ class Model(nn.Module):
         '''
 
         obs_loc, obs_pose, _ = inputs
-
-        # use noisy observation
-        obs_loc = 0.5 * (obs_pose[:, 0:2, :, 8, :] + obs_pose[:, 0:2, :, 11, :])        # (batch_size, loc_feats, obs_len, 1)
-        obs_loc = obs_loc.squeeze(3)
-        obs_loc = obs_loc.permute(0, 2, 1)
         pred_loc = self.predictor(obs_loc)
 
         return pred_loc

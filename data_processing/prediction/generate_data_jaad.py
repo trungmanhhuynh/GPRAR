@@ -15,25 +15,23 @@ def chunks(data, traj_len=20, slide=1):
         yield list(islice(data, i, i + traj_len))
 
 
-def impute_poses(poses):
+def impute_poses(args, poses):
     """
             interplote poses
             input: poses ~ [traj_len, 75]  : 75 is 25*3, 25 keypoints, 3: x,y,c
             ouput: imputed_poses ~ [traj_len, 75]
     """
 
-    valid_sample = True
-    poses_array = np.array(poses)
+    valid = True
 
     imputer = KNNImputer(missing_values=0, n_neighbors=5, weights="uniform")
-    imputed_poses = imputer.fit_transform(poses_array)
+    imputed_poses = imputer.fit_transform(poses)
 
-    imputed_poses_array = np.array(imputed_poses)
+    if(imputed_poses.shape[1] != 54):
+        imputed_poses = poses      # return the original data
+        valid = False            # return -1 if shape is not right
 
-    if(imputed_poses_array.shape[1] != NUM_KEYPOINTS):
-        valid_sample = False            # return -1 if shape is not right
-
-    return imputed_poses, valid_sample
+    return imputed_poses, valid
 
 
 def generate_samples(video_data, video_name, args):
@@ -101,7 +99,7 @@ def generate_samples(video_data, video_name, args):
             if(len(poses) < args.traj_len):
                 continue
 
-            # skip of the label is not consistent
+            # skip of the label is not the same for all poses in video
             consistent_label = True
             for action_index in long_action_indexes:
                 if action_index != long_action_indexes[0]:
@@ -115,11 +113,20 @@ def generate_samples(video_data, video_name, args):
             if(gap > args.traj_len):
                 continue
 
-            # impute data 
+            poses = np.array(poses)  # (traj_len, 2)
 
+            # impute data
+            if(args.data_type == 'impute'):
+                poses, valid = impute_poses(args, poses)
+
+            if(args.data_type == 'gt'):
+                poses, valid = impute_poses(args, poses)
+                if 0 in poses:
+                    continue
+
+            # if(args.data_type != 'gt'):
 
             # normalize poses
-            poses = np.array(poses)  # (T,  num_keypoints*3)
             poses[:, 0::3] = poses[:, 0::3] / float(video_info[video_name][0])  # normalize x by frame width
             poses[:, 1::3] = poses[:, 1::3] / float(video_info[video_name][1])  # normalize y by frame height
             poses[:, 0::3] = poses[:, 0::3] - 0.5  # centralize
@@ -127,12 +134,26 @@ def generate_samples(video_data, video_name, args):
             poses[:, 0::3][poses[:, 2::3] == 0] = 0
             poses[:, 1::3][poses[:, 2::3] == 0] = 0
 
-            # normalize locations
-            locations = np.array(locations)  # (traj_len, 2)
-            locations[:, 0] = locations[:, 0] / float(video_info[video_name][0])
-            locations[:, 1] = locations[:, 1] / float(video_info[video_name][1])
-            locations[:, 0] = locations[:, 0] - 0.5
-            locations[:, 1] = locations[:, 1] - 0.5
+            # get location data
+            if(args.data_type == 'impute'):
+                locations = np.zeros((args.traj_len, 2))
+                left_hip = poses[:, 24:26]
+                right_hip = poses[:, 33:35]
+
+                if (0 not in left_hip and 0 not in right_hip):
+                    locations = 0.5 * (left_hip + right_hip)
+                elif (0 in left_hip):
+                    locations = right_hip
+                elif (0 in right_hip):
+                    locations = left_hip
+
+            if(args.data_type == 'gt'):
+                input("here")
+                locations = np.array(locations)  # (traj_len, 2)
+                locations[:, 0] = locations[:, 0] / float(video_info[video_name][0])
+                locations[:, 1] = locations[:, 1] / float(video_info[video_name][1])
+                locations[:, 0] = locations[:, 0] - 0.5
+                locations[:, 1] = locations[:, 1] - 0.5
 
             # add to sample list
             location_seqs.append(locations.tolist())
@@ -239,11 +260,12 @@ def generate_data(args, mode):
     # write to file
     if not os.path.exists(os.path.join(args.out_folder)):
         os.makedirs(os.path.join(args.out_folder))
-    data_file = os.path.join(args.out_folder, "{}_data.pkl".format(mode))
+    data_file = os.path.join(args.out_folder, "{}_data_{}.pkl".format(mode, args.data_type))
+    metadata_file = os.path.join(args.out_folder, "{}_metadata_{}.pkl".format(mode, args.data_type))
+
     with open(data_file, 'wb') as f:
         pickle.dump((all_location_seqs, all_pose_seqs, all_gridflow_seqs), f)
 
-    metadata_file = os.path.join(args.out_folder, "{}_metadata.pkl".format(mode))
     with open(metadata_file, 'wb') as f:
         pickle.dump((all_video_names, all_image_names, all_action_labels, all_action_indexes), f)
 
@@ -296,8 +318,12 @@ if __name__ == "__main__":
     parser.add_argument(
         '--slide', type=int, default=1, help='gap between trajectory')
     parser.add_argument(
+        '--data_type', type=str, default='raw', help='raw, impute, or gt')
+    parser.add_argument(
         '--debug', action="store_true", default=False, help='debug mode')
     args = parser.parse_args()
+
+    assert args.data_type == 'noisy' or args.data_type == 'impute' or args.data_type == 'gt'
 
     # test_KNNImputer()
     generate_data(args, "train")

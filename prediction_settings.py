@@ -37,7 +37,7 @@ class PredictionSettings():
         self.load_weights()
         self.gpu()
         self.load_data()
-        # self.load_optimizer()
+        self.load_optimizer()
 
     def load_model(self):
         self.model = self.io.load_model(self.arg.model,

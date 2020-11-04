@@ -1,0 +1,38 @@
+work_dir: ./work_dir/prediction/jaad/cnn_pose_gridflow/impute
+
+# feeder
+feeder: feeder.feeder_prediction_jaad.Feeder
+train_feeder_args:
+  obs_len: 10
+  pred_len: 10
+  data_path: ../datasets/processed_data/prediction/jaad/train_data_impute.pkl
+  label_path: ../datasets/processed_data/prediction/jaad/train_metadata_impute.pkl
+test_feeder_args:
+  obs_len: 10
+  pred_len: 10
+  data_path: ../datasets/processed_data/prediction/jaad/val_data_impute.pkl
+  label_path: ../datasets/processed_data/prediction/jaad/val_metadata_impute.pkl
+
+
+# model
+model: net.tcnn_pose_gridflow.Model
+model_args:
+  obs_len: 10
+  pred_len: 10
+  loc_feats: 2
+  pose_feats: 3
+  num_keypoints: 18
+  gridflow_feats: 24
+
+# training
+device: [0,2,3]
+batch_size: 256 
+test_batch_size: 256
+
+# optim
+base_lr: 0.1
+step: [20, 30, 40, 50]
+num_epoch: 50
+
+
+

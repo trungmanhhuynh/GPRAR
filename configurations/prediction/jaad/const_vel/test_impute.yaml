@@ -1,13 +1,12 @@
-work_dir: ./work_dir/prediction/jaad_const_vel
-# weights: ./work_dir/reconstruction/kinetics/epoch50_model.pt
+work_dir: ./work_dir/prediction/jaad/const_vel/impute
 
 # feeder
 feeder: feeder.feeder_prediction_jaad.Feeder
 test_feeder_args:
   obs_len: 10
   pred_len: 10
-  data_path: ../datasets/processed_data/prediction/jaad/val_data.pkl
-  label_path: ../datasets/processed_data/prediction/jaad/val_metadata.pkl
+  data_path: ../datasets/processed_data/prediction/jaad/val_data_impute.pkl
+  label_path: ../datasets/processed_data/prediction/jaad/val_metadata_impute.pkl
 
 
 # model

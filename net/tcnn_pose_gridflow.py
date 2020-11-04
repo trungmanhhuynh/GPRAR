@@ -49,15 +49,11 @@ class Model(nn.Module):
         obs_loc, obs_pose, obs_gridflow = inputs
         batch_size = obs_pose.shape[0]
 
-        # use noisy observation
-        obs_loc = 0.5 * (obs_pose[:, 0:2, :, 8, :] + obs_pose[:, 0:2, :, 11, :])        # (batch_size, loc_feats, obs_len, 1)
-
-        # re-shape pose
+        # reshape
+        obs_loc = obs_loc.permute(0, 2, 1).unsqueeze(3)   # (batch_size, loc_feats, obs_len, 1)
+        obs_gridflow = obs_gridflow.permute(0, 2, 1).unsqueeze(3)     # (batch_size, gridflow_feats, obs_len, 1)
         obs_pose = obs_pose.permute(0, 3, 1, 2, 4)  # (batch_size, num_keypoints, pose_feats, obs_len, 1)
         obs_pose = obs_pose.reshape(batch_size, self.num_keypoints * self.pose_feats, self.obs_len, 1)
-
-        # reshape obs_gridflow
-        obs_gridflow = obs_gridflow.permute(0, 2, 1).unsqueeze(3)     # (batch_size, gridflow_feats, obs_len, 1)
 
         # predict
         pred_loc = self.predictor(obs_loc, obs_pose, obs_gridflow)
