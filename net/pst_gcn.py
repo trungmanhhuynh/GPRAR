@@ -44,9 +44,6 @@ class Model(nn.Module):
         self.graph = Graph(**graph_args)
         A = torch.tensor(self.graph.A, dtype=torch.float32, requires_grad=False)
         self.register_buffer('A', A)
-        self.graph1 = Graph(**graph_args)
-        A1 = torch.tensor(self.graph1.A, dtype=torch.float32, requires_grad=False)
-        self.register_buffer('A1', A1)
 
         # build networks
         spatial_kernel_size = A.size(0)
@@ -54,6 +51,8 @@ class Model(nn.Module):
         kernel_size = (temporal_kernel_size, spatial_kernel_size)
         self.data_bn = nn.BatchNorm1d(pose_feats * A.size(1))
         kwargs0 = {k: v for k, v in kwargs.items() if k != 'dropout'}
+
+        # pose feature encoder with importance weight
         self.st_gcn_networks = nn.ModuleList((
             st_gcn(self.pose_feats, 64, kernel_size, 1, residual=False, **kwargs0),
             st_gcn(64, 64, kernel_size, 1, **kwargs),
@@ -66,7 +65,6 @@ class Model(nn.Module):
             st_gcn(256, 256, kernel_size, 1, **kwargs),
             st_gcn(256, 256, kernel_size, 1, **kwargs),
         ))
-        # initialize parameters for edge importance weighting
         if edge_importance_weighting:
             self.edge_importance = nn.ParameterList([
                 nn.Parameter(torch.ones(self.A.size()))
@@ -75,14 +73,24 @@ class Model(nn.Module):
         else:
             self.edge_importance = [1] * len(self.st_gcn_networks)
 
-        # add reconstruction branch
-        self.reconstructor = nn.ModuleList((
+        # pose reconstructor network
+        self.reconstructor_graph = Graph(**graph_args)
+        rA = torch.tensor(self.reconstructor_graph.A, dtype=torch.float32, requires_grad=False)
+        self.register_buffer('rA', rA)
+
+        self.pose_reconstructor = nn.ModuleList((
             rst_gcn(256, 128, kernel_size, 1, residual=False, **kwargs),
             rst_gcn(128, 64, kernel_size, 1, residual=True, **kwargs),
             rst_gcn(64, 64, kernel_size, 1, residual=True, **kwargs),
             rst_gcn(64, self.pose_feats, kernel_size, 1, residual=True, **kwargs)
         ))
-        self.edge_importance_reconstruction = [1] * len(self.reconstructor)
+        if edge_importance_weighting:
+            self.redge_importance = nn.ParameterList([
+                nn.Parameter(torch.ones(self.rA.size()))
+                for i in self.pose_reconstructor
+            ])
+        else:
+            self.redge_importance = [1] * len(self.pose_reconstructor)
 
         # predictor
         self.predictor = Predictor(obs_len=obs_len,
@@ -91,44 +99,6 @@ class Model(nn.Module):
                                    pose_feats=pose_feats,
                                    gridflow_feats=gridflow_feats,
                                    num_keypoints=num_keypoints)
-    # def forward(self, inputs):
-
-    #     obs_loc, x, flow_in  = inputs
-    #     # data normalization
-    #     N, C, T, V, M = x.size()
-    #     x = x.permute(0, 4, 3, 1, 2).contiguous()  # N, M, V, C, T
-    #     x = x.view(N * M, V * C, T)
-    #     x = self.data_bn(x)
-    #     x = x.view(N, M, V, C, T)
-    #     x = x.permute(0, 1, 3, 4, 2).contiguous()
-    #     x = x.view(N * M, C, T, V)                 # ~ (N * M, C, T, V)
-
-    #     # forwad
-    #     for gcn, importance in zip(self.st_gcn_networks, self.edge_importance):
-    #         x, _ = gcn(x, self.A * importance)          # x ~ (N * M, C', T, V)
-
-    #     _, c, t, v = x.size()
-    #     action_in = x.view(N, M, c, t, v).permute(0, 2, 3, 4, 1)
-
-    #     # global pooling
-    #     x1 = F.avg_pool2d(x, x.size()[2:])
-    #     x1 = x1.view(N, M, -1, 1, 1).mean(dim=1)
-
-    #     # reconstruction branch
-    #     for rst_gcn, importance in zip(self.reconstructor, self.edge_importance_reconstruction):
-    #         x, _ = rst_gcn(x, self.A1 * importance)        # x ~ (N * M, C', T, V)
-
-    #     x2 = x.view(N, M, C, T, V)                # x ~ (N , M, C, T, V)
-    #     x2 = x2.permute(0, 2, 3, 4, 1).contiguous()            # x ~ (N , C, T, V, M)
-
-    #     # extract observed locations
-    #     left_hip = x2[:, :, :, 8, :]
-    #     right_hip = x2[:, :, :, 11, :]
-    #     traj_in = 0.5 * (left_hip + right_hip)
-
-    #     pred_locs = self.predictor(pose_in=x2, traj_in=traj_in, flow_in=flow_in, action_in=action_in)
-
-    #     return pred_locs
 
     def forward(self, inputs):
         '''
@@ -144,7 +114,6 @@ class Model(nn.Module):
         obs_loc, obs_pose, obs_gridflow = inputs
         batch_size = obs_pose.shape[0]
 
-        # Reconstructing pose
         # data normalization
         x = obs_pose
         N, C, T, V, M = x.size()
@@ -159,18 +128,17 @@ class Model(nn.Module):
             x, _ = gcn(x, self.A * importance)                       # (N * M, C', T, V)
 
         # reconstruction branch
-        for rst_gcn, importance in zip(self.reconstructor, self.edge_importance_reconstruction):
-            x, _ = rst_gcn(x, self.A1 * importance)                  # (N * M, C', T, V)
+        for rst_gcn, importance in zip(self.reconstructor, self.redge_importance):
+            x, _ = rst_gcn(x, self.rA * importance)                  # (N * M, C', T, V)
         rpose = x.view(N, M, C, T, V)                                # (N , M, C, T, V)
-        rpose = rpose.permute(0, 2, 3, 4, 1).contiguous()            # (N , C, T, V, M)
+        rpose = rpose.permute(0, 4, 2, 3, 1).contiguous()            # (N, V, C, T, 1)
+        rpose = rpose.reshape(batch_size, self.num_keypoints * self.pose_feats, self.obs_len, 1)
 
         # reshape
         obs_loc = obs_loc.permute(0, 2, 1).unsqueeze(3)               # (batch_size, loc_feats, obs_len, 1)
-        obs_gridflow = obs_gridflow.permute(0, 2, 1).unsqueeze(3)     # (batch_size, gridflow_feats, obs_len, 1)
-        rpose = rpose.permute(0, 3, 1, 2, 4)                          # (batch_size, num_keypoints, pose_feats, obs_len, 1)
-        rpose = rpose.reshape(batch_size, self.num_keypoints * self.pose_feats, self.obs_len, 1)
 
         # predict
+        obs_gridflow = obs_gridflow.permute(0, 2, 1).unsqueeze(3)     # (batch_size, gridflow_feats, obs_len, 1)
         pred_loc = self.predictor(obs_loc, rpose, obs_gridflow)
 
         return pred_loc
@@ -188,7 +156,7 @@ class Model(nn.Module):
 
         # forwad
         for gcn, importance in zip(self.st_gcn_networks, self.edge_importance):
-            x, _ = gcn(x, self.A1 * importance)          # x ~ (N * M, C', T, V) ([256, 256, 75, 18])
+            x, _ = gcn(x, self.rA * importance)          # x ~ (N * M, C', T, V) ([256, 256, 75, 18])
 
         _, c, t, v = x.size()
         feature = x.view(N, M, c, t, v).permute(0, 2, 3, 4, 1)
@@ -199,7 +167,7 @@ class Model(nn.Module):
 
         # add a branch for reconstruction
         for rst_gcn, importance in zip(self.reconstructor, self.edge_importance_reconstruction):
-            x, _ = rst_gcn(x, self.A1 * importance)         # x ~ (N * M, C', T, V) (64, 3, 10, 18)
+            x, _ = rst_gcn(x, self.rA * importance)         # x ~ (N * M, C', T, V) (64, 3, 10, 18)
 
         # x2 = self.last_tcn(x2)
         x2 = x.view(N, M, C, T, V)                # x ~ (N , M, C, T, V) (64, 1, 3, 10, 18)
