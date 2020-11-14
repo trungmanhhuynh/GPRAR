@@ -31,6 +31,7 @@ class PredictionSettings():
 
     def __init__(self, argv=None):
 
+        print ("im here")
         self.load_arg(argv)
         self.init_environment()
         self.load_model()
@@ -43,7 +44,6 @@ class PredictionSettings():
         self.model = self.io.load_model(self.arg.model,
                                         **(self.arg.model_args))
         self.model.apply(weights_init)
-
         self.loss = nn.MSELoss()
 
     def load_weights(self):

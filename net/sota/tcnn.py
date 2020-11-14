@@ -57,7 +57,7 @@ class Predictor(nn.Module):
 
         # init variables
         self.obs_len = obs_len
-        self.pred_len = pred_len
+        self.pred_len = pred_len 
         self.loc_feats = loc_feats
 
         # TCN for prediction

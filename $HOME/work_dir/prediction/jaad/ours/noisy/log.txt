@@ -1,0 +1,1 @@
+[11.08.20|15:30:35] Load weights from $HOME/work_dir/reconstruction/jaad/epoch50_model.pt.

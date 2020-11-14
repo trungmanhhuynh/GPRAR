@@ -31,7 +31,7 @@ class Prediction(PredictionSettings):
                         epoch + 1 == self.arg.num_epoch):
                     self.io.print_log('Eval epoch: {}'.format(epoch))
                     self.test()
-                    self.io.print_log('Done.')
+                    # self.io.print_log('Done.')
         # test phase
         elif self.arg.phase == 'test':
 
