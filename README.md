@@ -7,65 +7,34 @@
  - The current method is based on spatio-temporal graph convolutional neural networks (st-gcnn), which we will exploit its capability to "attend" to visible human keypoints, 
  give higher importance weights to human parts that are related to prediction tasks. 
 
-
-## Generate processed data  
-Please read [PRE_PROCESS.md](PRE_PROCESS.md)
-
-
-## Reconstructor 
-#### 1. Generate train/val data 
-Generate confident poses:
+#### Results on JAAD dataset
+**1. Generate train/val data**  
+a. Read [PRE_PROCESS.md](PRE_PROCESS.md) for instructions extracting features.  
+b. Generate/val data of JAAD and Kinetics for reconstruction task: 
 ```
-$ python reconstructor/generate_data.py --d_size large
+$ python data_procesing/reconstruction/generate_data_jaad.py 
+$ python data_procesing/reconstruction/generate_kinetics_jaad.py 
+```   
+c. Generate train/val data for prediction task with different observation types `obs_type`: `noisy`, `impute`, `gt` :  
 ```
-By default, The script generates `train_val_data/JAAD/reconstructor/train_$d_size.joblib` and `train_val_data/JAAD/reconstructor/val_$d_size.joblib`
-
-#### 2. Train
-```
-python reconstructor/train.py --dset JAAD --dsize large --add_noise --save_dir save/reconstructor/
-```
-
-#### 3. Test
-
-To valdiate on high-confident poses + random keypoint drop (same validation set as used in training)
-```
-python reconstructor/test.py --test_data train_val_data/JAAD/reconstructor/val_large.joblib --add_noise --resume save/reconstructor/model/model_best.py
-```
-To test on pose used in prediction step. Dont specify `--add_noise` because it already exists
-```
-python reconstructor/test.py --test_data train_val_data/JAAD/predictor/val_large.joblib --resume save/reconstructor/model/model_best.py
-```
-
-## Predictor
-#### Generate train/val data
-```
-python predictor/generate_data.py --d_size small
-```
-#### Train without using reconstructor
-```
-$ python predictor/train.py --train_data train_val_data/JAAD/predictor/train_medium.joblib --val_data train_val_data/JAAD/predictor/val_medium.joblib --save_dir save_temp/predictor_medium_withflow_norc
-```
-
-#### Train using reconstructor
-```
-python predictor/train.py --train_data train_val_data/JAAD/predictor/train_medium.joblib --val_data train_val_data/JAAD/predictor/val_medium.joblib --save_dir save_temp/predictor_medium_withflow_withrc --resume save/reconstructor/model/model_best.pt
-```
-#### Test
-
-## Analysis
-
-```
-python utils/analysis.py --traj_file save/trajs.json --test_data train_val_data/JAAD/mini_size/val_data.joblib
-```
-
-## Train/Val Recognition SubNetwork using Kinectics dataset
-
-```
-python main.py -c configurations/recognition/train.yaml 
-```
-```
-python main.py -c configurations/recognition/test.yaml 
-```
+$  python data_processing/prediction/generate_data_jaad.py --obs_type noisy
+$  python data_processing/prediction/generate_data_jaad.py --obs_type impute
+$  python data_processing/prediction/generate_data_jaad.py --obs_type gt
+``` 
 
 
-
+**2. Train RegNet on kinetics datasets** 
+```
+$ python main.py recognition -c configurations/recognition/train.yaml
+```
+**3. Train RecPoseNet on kinetics datasets** 
+```
+$ python main.py reconstruction -c configurations/reconstruction/train_kinetics.yaml
+```
+**4. Train RecPoseNet on JAAD datasets** 
+```
+```
+**4. Train PNet on JAAD datasets** 
+```
+```
+#### Results on TITAN dataset

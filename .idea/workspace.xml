@@ -33,6 +33,8 @@
   </component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="Z:\github\Traj-STGCNN\data_processing\recognition" />
+      <recent name="Z:\github\Traj-STGCNN\tools" />
       <recent name="Z:\github\Traj-STGCNN\net\sota" />
     </key>
   </component>
@@ -51,7 +53,19 @@
       <workItem from="1605208654087" duration="2148000" />
       <workItem from="1605242113028" duration="3242000" />
       <workItem from="1605288092372" duration="5351000" />
-      <workItem from="1605323170057" duration="667000" />
+      <workItem from="1605323170057" duration="1896000" />
+      <workItem from="1605329185602" duration="1941000" />
+      <workItem from="1605412581511" duration="4767000" />
+      <workItem from="1605460901417" duration="8887000" />
+      <workItem from="1605498011853" duration="3926000" />
+      <workItem from="1605541770839" duration="4575000" />
+      <workItem from="1605569055895" duration="7069000" />
+      <workItem from="1605585935790" duration="3448000" />
+      <workItem from="1605630223793" duration="8406000" />
+      <workItem from="1605672436475" duration="1054000" />
+      <workItem from="1605674147447" duration="3817000" />
+      <workItem from="1605716312217" duration="8380000" />
+      <workItem from="1605887843043" duration="414000" />
     </task>
     <servers />
   </component>
@@ -59,30 +73,37 @@
     <option name="version" value="3" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="698" y="344" key="#Notifications" timestamp="1605201134590">
-      <screen x="0" y="0" width="1920" height="1040" />
+    <state x="598" y="286" key="#Notifications" timestamp="1605584328642">
+      <screen x="62" y="0" width="1474" height="864" />
     </state>
     <state x="698" y="344" key="#Notifications/-1920.0.1536.832/0.0.1920.1040@0.0.1920.1040" timestamp="1605201134590" />
-    <state x="1059" y="256" key="FileChooserDialogImpl" timestamp="1605211145162">
-      <screen x="0" y="0" width="1920" height="1040" />
+    <state x="598" y="286" key="#Notifications/62.0.1474.864@62.0.1474.864" timestamp="1605584328642" />
+    <state x="1094" y="266" key="FileChooserDialogImpl" timestamp="1605655789142">
+      <screen x="78" y="0" width="1842" height="1080" />
     </state>
+    <state x="1094" y="266" key="FileChooserDialogImpl/-1858.0.1474.864/78.0.1842.1080@78.0.1842.1080" timestamp="1605655789142" />
     <state x="1059" y="256" key="FileChooserDialogImpl/-1920.0.1536.832/0.0.1920.1040@0.0.1920.1040" timestamp="1605211145162" />
-    <state x="264" y="38" key="SettingsEditor" timestamp="1605242463342">
+    <state x="264" y="38" key="SettingsEditor" timestamp="1605716538874">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="264" y="38" key="SettingsEditor/-1920.0.1536.832/0.0.1920.1040@0.0.1920.1040" timestamp="1605242463342" />
-    <state x="-1920" y="0" width="1550" height="880" key="dock-window-1" timestamp="1605288811948">
-      <screen x="-1920" y="0" width="1536" height="832" />
+    <state x="264" y="38" key="SettingsEditor/-1920.0.1536.832/0.0.1920.1040@0.0.1920.1040" timestamp="1605716538874" />
+    <state x="-1818" y="0" width="1448" height="880" key="dock-window-1" timestamp="1605548316946">
+      <screen x="-1870" y="0" width="1486" height="864" />
     </state>
+    <state x="-1818" y="0" width="1448" height="880" key="dock-window-1/-1870.0.1486.864/62.0.1858.1080@62.0.1858.1080" timestamp="1605548316946" />
     <state x="-1920" y="0" width="1550" height="880" key="dock-window-1/-1920.0.1536.832/0.0.1920.1040@0.0.1920.1040" timestamp="1605288811948" />
+    <state x="560" y="45" width="840" height="1034" key="search.everywhere.popup" timestamp="1605571207526">
+      <screen x="62" y="0" width="1858" height="1080" />
+    </state>
+    <state x="560" y="45" width="840" height="1034" key="search.everywhere.popup/-1870.0.1486.864/62.0.1858.1080@62.0.1858.1080" timestamp="1605571207526" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/net/PNet.py</url>
-          <line>182</line>
-          <option name="timeStamp" value="1" />
+          <line>148</line>
+          <option name="timeStamp" value="2" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

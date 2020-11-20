@@ -71,7 +71,7 @@ class PNet(nn.Module):
         self.reconstructor_graph = Graph(**graph_args)
         rA = torch.tensor(self.reconstructor_graph.A, dtype=torch.float32, requires_grad=False)
         self.register_buffer('rA', rA)
-        self.pose_reconstructor = nn.ModuleList((
+        self.reconstructor = nn.ModuleList((
             rst_gcn(256, 128, kernel_size, 1, residual=False, **kwargs),
             rst_gcn(128, 64, kernel_size, 1, residual=True, **kwargs),
             rst_gcn(64, 64, kernel_size, 1, residual=True, **kwargs),
@@ -80,10 +80,10 @@ class PNet(nn.Module):
         if edge_importance_weighting:
             self.redge_importance = nn.ParameterList([
                 nn.Parameter(torch.ones(self.rA.size()))
-                for i in self.pose_reconstructor
+                for i in self.reconstructor
             ])
         else:
-            self.redge_importance = [1] * len(self.pose_reconstructor)
+            self.redge_importance = [1] * len(self.reconstructor)
 
         # predictor
         self.predictor = Predictor(obs_len=obs_len, pred_len=pred_len, loc_feats=loc_feats,
@@ -131,7 +131,7 @@ class PNet(nn.Module):
             obs_pose, _ = gcn(obs_pose, self.A * importance)  # (N * M, P, To, V)
 
         # reconstruct pose
-        for rst_gcn, importance in zip(self.pose_reconstructor, self.redge_importance):
+        for rst_gcn, importance in zip(self.reconstructor, self.redge_importance):
             obs_pose, _ = rst_gcn(obs_pose, self.rA * importance)  # (N * M, P, To, V)
         rpose = obs_pose.view(N, M, P, To, V)  # (N , M, P, To, V)
         rpose = rpose.permute(0, 4, 2, 3, 1).contiguous()  # (N, V * P, To, 1)

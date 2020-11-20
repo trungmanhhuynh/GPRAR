@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from net.utils.graph import Graph
 from net.utils.rst_gcn import rst_gcn
+from net.utils.st_gcn import st_gcn
 
 class RecPoseNet(nn.Module):
     r"""Spatial temporal graph convolutional networks.
@@ -81,10 +83,10 @@ class RecPoseNet(nn.Module):
         if edge_importance_weighting:
             self.redge_importance = nn.ParameterList([
                 nn.Parameter(torch.ones(self.rA.size()))
-                for i in self.pose_reconstructor
+                for i in self.reconstructor
             ])
         else:
-            self.redge_importance = [1] * len(self.pose_reconstructor)
+            self.redge_importance = [1] * len(self.reconstructor)
 
 
     def forward(self, x):
@@ -111,8 +113,8 @@ class RecPoseNet(nn.Module):
         x1 = x1.view(x1.size(0), -1)
 
         # add a branch for reconstruction
-        for rst_gcn, importance in zip(self.reconstructor, self.edge_importance_reconstruction):
-            x, _ = rst_gcn(x, self.A1 * importance)  # x ~ (N * M, C', T, V) (64, 3, 10, 18)
+        for rst_gcn, importance in zip(self.reconstructor, self.redge_importance):
+            x, _ = rst_gcn(x, self.rA * importance)  # x ~ (N * M, C', T, V) (64, 3, 10, 18)
 
         # x2 = self.last_tcn(x2)
         x2 = x.view(N, M, C, T, V)  # x ~ (N , M, C, T, V) (64, 1, 3, 10, 18)

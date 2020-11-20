@@ -27,15 +27,15 @@ def impute_poses(args, poses):
     imputer = KNNImputer(missing_values=0, n_neighbors=5, weights="uniform")
     imputed_poses = imputer.fit_transform(poses)
 
-    if(imputed_poses.shape[1] != 54):
-        imputed_poses = poses      # return the original data
-        valid = False            # return -1 if shape is not right
+    if (imputed_poses.shape[1] != 54):
+        imputed_poses = poses  # return the original data
+        valid = False  # return -1 if shape is not right
 
     return imputed_poses, valid
 
 
-def generate_samples(video_data, video_name, args):
-    '''
+def generate_samples(video_data, video_name, args, mode):
+    """
         Input:
             + video_data: a dictionary
                 'image_name'(str):{
@@ -52,7 +52,7 @@ def generate_samples(video_data, video_name, args):
                     'locations': list ~[traj_len, 2]
                     'bboxes':  list ~ [traj_len, 4]
             }
-    '''
+    """
     pose_seqs, video_names, image_name_out = [], [], []
     action_label_out, action_index_out = [], []
     location_seqs, gridflow_seqs = [], []
@@ -67,7 +67,7 @@ def generate_samples(video_data, video_name, args):
     id_list = []
     for image_name in video_data:
         for person in video_data[image_name]["people"]:
-            if(person['person_id'] not in id_list):
+            if person['person_id'] not in id_list:
                 id_list.append(person['person_id'])
 
     # extract trajectory for each pedestrian
@@ -78,7 +78,7 @@ def generate_samples(video_data, video_name, args):
         long_locations, long_gridflow = [], []
         for image_name in video_data:
             for person in video_data[image_name]["people"]:
-                if(person['person_id'] == pid):
+                if person['person_id'] == pid:
                     long_locations.append(person['location'])
                     long_poses.append(person['pose'])
                     long_image_names.append(image_name)
@@ -96,7 +96,7 @@ def generate_samples(video_data, video_name, args):
                 chunks(long_action_indexes, traj_len=args.traj_len, slide=args.slide)):
 
             # skip if trajectory is short
-            if(len(poses) < args.traj_len):
+            if len(poses) < args.traj_len:
                 continue
 
             # skip of the label is not the same for all poses in video
@@ -104,27 +104,24 @@ def generate_samples(video_data, video_name, args):
             for action_index in long_action_indexes:
                 if action_index != long_action_indexes[0]:
                     consistent_label = False
-            if(not consistent_label):
+            if not consistent_label:
                 continue
 
             # check if trajectory is continous by extracting frame number [-11:-4] from names
             # this applies for image names with format: 0000x.png  or {:05d}.png
             gap = abs(int(image_names[0][-9:-4]) - int(image_names[-1][-9:-4]))
-            if(gap > args.traj_len):
+            if gap > args.traj_len:
                 continue
 
+            # get pose data
             poses = np.array(poses)  # (traj_len, 2)
-
-            # impute data
-            if(args.data_type == 'impute'):
-                poses, valid = impute_poses(args, poses)
-
-            if(args.data_type == 'gt'):
-                poses, valid = impute_poses(args, poses)
-                if 0 in poses:
-                    continue
-
-            # if(args.data_type != 'gt'):
+            if mode == 'train':
+                if args.obs_type == 'impute' or args.obs_type == 'gt':
+                    poses, valid = impute_poses(args, poses)
+            else:
+                if args.obs_type == 'gt':
+                    if 0 in poses:
+                        continue
 
             # normalize poses
             poses[:, 0::3] = poses[:, 0::3] / float(video_info[video_name][0])  # normalize x by frame width
@@ -135,32 +132,29 @@ def generate_samples(video_data, video_name, args):
             poses[:, 1::3][poses[:, 2::3] == 0] = 0
 
             # get location data
-            if(args.data_type == 'impute'):
-                locations = np.zeros((args.traj_len, 2))
-                left_hip = poses[:, 24:26]
-                right_hip = poses[:, 33:35]
-
-                if (0 not in left_hip and 0 not in right_hip):
-                    locations = 0.5 * (left_hip + right_hip)
-                elif (0 in left_hip):
-                    locations = right_hip
-                elif (0 in right_hip):
-                    locations = left_hip
-
-            if(args.data_type == 'gt'):
-                input("here")
+            if args.obs_type == 'gt':
                 locations = np.array(locations)  # (traj_len, 2)
                 locations[:, 0] = locations[:, 0] / float(video_info[video_name][0])
                 locations[:, 1] = locations[:, 1] / float(video_info[video_name][1])
                 locations[:, 0] = locations[:, 0] - 0.5
                 locations[:, 1] = locations[:, 1] - 0.5
+            else:
+                locations = np.zeros((args.traj_len, 2))
+                left_hip = poses[:, 24:26]
+                right_hip = poses[:, 33:35]
+                if 0 not in left_hip and 0 not in right_hip:
+                    locations = 0.5 * (left_hip + right_hip)
+                elif 0 in left_hip:
+                    locations = right_hip
+                else:
+                    locations = left_hip
 
             # add to sample list
             location_seqs.append(locations.tolist())
             pose_seqs.append(poses.tolist())
             gridflow_seqs.append(gridflow)
             video_names.append(video_name)
-            image_name_out.append(image_names[0])       # keep first image name for meta-data
+            image_name_out.append(image_names[0])  # keep first image name for meta-data
             action_label_out.append(action_labels[0])
             action_index_out.append(action_indexes[0])
 
@@ -175,12 +169,12 @@ def generate_data(args, mode):
             - label: list of N samples --> writting to *.json file
     """
     video_dir = os.listdir(os.path.join(args.pose_path))
-    if(mode == "train"):
-        video_dir = video_dir[:int(len(video_dir) * 0.8)]           # 80% of data for training
+    if mode == "train":
+        video_dir = video_dir[:int(len(video_dir) * 0.8)]  # 80% of data for training
     else:  # val
-        video_dir = video_dir[-int(len(video_dir) * 0.2):]          # 20% of data for val
-    if(args.debug):
-        video_dir = video_dir[:10]                                  # use 10 videos for debug
+        video_dir = video_dir[-int(len(video_dir) * 0.2):]  # 20% of data for val
+    if args.debug:
+        video_dir = video_dir[:10]  # use 10 videos for debug
 
     all_pose_seqs, all_video_names, all_image_names = [], [], []
     all_action_labels, all_action_indexes = [], []
@@ -193,22 +187,24 @@ def generate_data(args, mode):
         for frame_number in range(len(os.listdir(os.path.join(args.pose_path, video_name))) - 1):
             # -1 because there is no gridflow data for the last frame
 
-            with open(os.path.join(args.location_path, video_name, "{:05d}_locations.json".format(frame_number)), "r") as f:
+            with open(os.path.join(args.location_path, video_name, "{:05d}_locations.json".format(frame_number)),
+                      "r") as f:
                 location_data = json.load(f)
             with open(os.path.join(args.pose_path, video_name, "{:05d}_keypoints.json".format(frame_number)), "r") as f:
                 pose_data = json.load(f)
-            with open(os.path.join(args.gridflow_path, video_name, "{:05d}_gridflow.json".format(frame_number)), "r") as f:
+            with open(os.path.join(args.gridflow_path, video_name, "{:05d}_gridflow.json".format(frame_number)),
+                      "r") as f:
                 gridflow_data = json.load(f)
 
             image_name = "{:05d}.png".format(frame_number)
             video_data[image_name] = {'people': []}
             for ped in pose_data['people']:
-                if(ped['person_id'][0] == -1):
+                if ped['person_id'][0] == -1:
                     continue  # skip ped withput id
 
                 temp_location = []
                 for p_in_loc in location_data['people']:
-                    if(ped['person_id'] == p_in_loc['person_id']):
+                    if ped['person_id'] == p_in_loc['person_id']:
                         temp_location = p_in_loc['center']
 
                 if not temp_location:
@@ -223,7 +219,8 @@ def generate_data(args, mode):
                                                          })
 
         # extract trajectory within a video
-        location_seqs, pose_seqs, gridflow_seqs, video_names, image_names, action_labels, action_indexes = generate_samples(video_data, video_name, args)
+        location_seqs, pose_seqs, gridflow_seqs, video_names, \
+        image_names, action_labels, action_indexes = generate_samples(video_data, video_name, args, mode)
 
         all_location_seqs.append(location_seqs)
         all_pose_seqs.append(pose_seqs)
@@ -234,9 +231,9 @@ def generate_data(args, mode):
         all_action_indexes.append(action_indexes)
 
     # convert data to numpy array of shape (N, C, T, V, 1)
-    all_location_seqs = np.array(sum(all_location_seqs, []))   # (N, T, 2)
-    all_pose_seqs = np.array(sum(all_pose_seqs, []))   # (N, T, V*C)
-    all_gridflow_seqs = np.array(sum(all_gridflow_seqs, []))   # (N, T, 24)
+    all_location_seqs = np.array(sum(all_location_seqs, []))  # (N, T, 2)
+    all_pose_seqs = np.array(sum(all_pose_seqs, []))  # (N, T, V*C)
+    all_gridflow_seqs = np.array(sum(all_gridflow_seqs, []))  # (N, T, 24)
     all_video_names = sum(all_video_names, [])
     all_image_names = sum(all_image_names, [])
     all_action_labels = sum(all_action_labels, [])
@@ -246,11 +243,11 @@ def generate_data(args, mode):
     # input("here")
 
     N, T, _ = all_pose_seqs.shape
-    if(args.pose_18):
-        all_pose_seqs = all_pose_seqs.reshape(N, T, 18, 3)       # (N, T, V, C)
-    if(args.pose_25):
+    if (args.pose_18):
+        all_pose_seqs = all_pose_seqs.reshape(N, T, 18, 3)  # (N, T, V, C)
+    if (args.pose_25):
         all_pose_seqs = all_pose_seqs.reshape(N, T, 25, 3)
-    all_pose_seqs = np.expand_dims(all_pose_seqs.transpose(0, 3, 1, 2), axis=4)   # (N, C, T, V, 1)
+    all_pose_seqs = np.expand_dims(all_pose_seqs.transpose(0, 3, 1, 2), axis=4)  # (N, C, T, V, 1)
 
     # normalize gridflow
     all_gridflow_seqs = all_gridflow_seqs.reshape(N * T, 24)
@@ -260,8 +257,8 @@ def generate_data(args, mode):
     # write to file
     if not os.path.exists(os.path.join(args.out_folder)):
         os.makedirs(os.path.join(args.out_folder))
-    data_file = os.path.join(args.out_folder, "{}_data_{}.pkl".format(mode, args.data_type))
-    metadata_file = os.path.join(args.out_folder, "{}_metadata_{}.pkl".format(mode, args.data_type))
+    data_file = os.path.join(args.out_folder, "{}_data_{}.pkl".format(mode, args.obs_type))
+    metadata_file = os.path.join(args.out_folder, "{}_metadata_{}.pkl".format(mode, args.obs_type))
 
     with open(data_file, 'wb') as f:
         pickle.dump((all_location_seqs, all_pose_seqs, all_gridflow_seqs), f)
@@ -279,7 +276,6 @@ def generate_data(args, mode):
 
 
 def test_KNNImputer():
-
     nan = np.nan
 
     X = np.array([[1, 2, nan, nan], [3, 4, 3, nan], [nan, 6, 5, nan], [8, 8, 7, nan]])  # X can be array or list
@@ -296,7 +292,6 @@ def test_KNNImputer():
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(
         description='Generate train/val data for prediction on jaad')
     parser.add_argument(
@@ -318,12 +313,12 @@ if __name__ == "__main__":
     parser.add_argument(
         '--slide', type=int, default=1, help='gap between trajectory')
     parser.add_argument(
-        '--data_type', type=str, default='raw', help='raw, impute, or gt')
+        '--obs_type', type=str, default='noisy', help='noisy, impute, or gt')
     parser.add_argument(
         '--debug', action="store_true", default=False, help='debug mode')
     args = parser.parse_args()
 
-    assert args.data_type == 'noisy' or args.data_type == 'impute' or args.data_type == 'gt'
+    assert args.obs_type == 'noisy' or args.obs_type == 'impute' or args.obs_type == 'gt'
 
     # test_KNNImputer()
     generate_data(args, "train")

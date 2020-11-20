@@ -31,7 +31,6 @@ class PredictionSettings():
 
     def __init__(self, argv=None):
 
-        print ("im here")
         self.load_arg(argv)
         self.init_environment()
         self.load_model()
@@ -146,6 +145,9 @@ class PredictionSettings():
         self.iter_info = dict()
         self.epoch_info = dict()
         self.meta_info = dict(epoch=0, iter=0)
+        self.loss_res = {'loss':[], 'ade': [], 'fde': []}
+        self.best_ade = 1000
+        self.best_fde = 1000
 
     @staticmethod
     def get_parser(add_help=False):

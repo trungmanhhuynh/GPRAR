@@ -1,24 +1,24 @@
-work_dir: ./work_dir/reconstruction/kinetics
-# weights: pretrained_models/recognition/kinetics-st_gcn_T10.pt
+work_dir: /home/manhh/work_dir/reconstruction/kinetics
+weights: /home/manhh/work_dir/recognition/kinetics/epoch50_model.pt
 
 # feeder
-feeder: feeder.feeder_reconstruction.Feeder
+feeder: feeder.feeder_reconstruction_kinetics.Feeder
 train_feeder_args:
   random_choose: True
   random_move: True
   window_size: 10 
   random_noise: True
-  data_path: data/reconstruction/kinetics/train_data.npy
-  label_path: data/reconstruction/kinetics/train_label.pkl
+  data_path: ../datasets/processed_data/reconstruction/kinetics/train_data.npy
+  label_path: ../datasets/processed_data/reconstruction/kinetics/train_label.pkl
 test_feeder_args:
   random_choose: False
   window_size: 10 
   random_noise: True
-  data_path: data/reconstruction/kinetics/val_data.npy
-  label_path: data/reconstruction/kinetics/val_label.pkl
+  data_path: ../datasets/processed_data/reconstruction/kinetics/val_data.npy
+  label_path: ../datasets/processed_data/reconstruction/kinetics/val_label.pkl
 
 # model
-model: net.rst_gcn_kinetics.Model
+model: net.RecPoseNet.RecPoseNet
 model_args:
   in_channels: 3
   num_class: 400
@@ -26,7 +26,6 @@ model_args:
   graph_args:
     layout: 'openpose'
     strategy: 'spatial'
-  window_size: 10
 
 # training
 device: [0,1,2,3]

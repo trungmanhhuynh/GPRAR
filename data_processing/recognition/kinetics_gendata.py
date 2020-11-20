@@ -1,4 +1,3 @@
-
 import os
 import sys
 import pickle
@@ -7,8 +6,8 @@ import argparse
 import numpy as np
 from numpy.lib.format import open_memmap
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+# sys.path.append(
+#     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from feeder.feeder_kinetics import Feeder_kinetics
 
 toolbar_width = 30
@@ -70,9 +69,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Kinetics-skeleton Data Converter.')
     parser.add_argument(
-        '--data_path', default='data/Kinetics/kinetics-skeleton')
+        '--data_path', default='../datasets/kinetics')
     parser.add_argument(
-        '--out_folder', default='data/Kinetics/kinetics-skeleton')
+        '--out_folder', default='../datasets/processed_data/recognition/kinetics')
     arg = parser.parse_args()
 
     part = ['train', 'val']

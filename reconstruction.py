@@ -1,7 +1,8 @@
-
+import os
 import numpy as np
 import torch
 import torch.nn as nn
+import json
 from reconstruction_settings import ReconstructionSettings
 
 class Reconstruction(ReconstructionSettings):
@@ -33,10 +34,13 @@ class Reconstruction(ReconstructionSettings):
                         epoch + 1 == self.arg.num_epoch):
                     self.io.print_log('Eval epoch: {}'.format(epoch))
                     self.test()
-                    self.io.print_log('Done.')
+            self.io.print_log('Save log file')
+            outfile = os.path.join(self.arg.work_dir, "loss.json")
+            with open(outfile, 'w') as f:
+                json.dump(self.loss_res, f)
+
         # test phase
         elif self.arg.phase == 'test':
-
             # the path of weights must be appointed
             if self.arg.weights is None:
                 raise ValueError('Please appoint --weights.')
@@ -46,7 +50,6 @@ class Reconstruction(ReconstructionSettings):
             # evaluation
             self.io.print_log('Evaluation Start:')
             self.test()
-            self.io.print_log('Done.\n')
 
             # save the output of model
             if self.arg.save_result:
@@ -133,8 +136,12 @@ class Reconstruction(ReconstructionSettings):
             self.epoch_info['mean_loss_reg'] = np.mean(loss_reg_value)
             self.epoch_info['mean_loss'] = np.mean(loss_value)
             self.epoch_info['ade'] = np.mean(meanADE)
-
             self.show_epoch_info()
+            # save loss
+            self.loss_res['loss_rec'].append(self.epoch_info['mean_loss_rec'])
+            self.loss_res['loss_reg'].append(self.epoch_info['mean_loss_reg'])
+            self.loss_res['loss'].append(self.epoch_info['mean_loss'])
+            self.loss_res['ade'].append(self.epoch_info['ade'])
 
             # show top-k accuracy
             for k in self.arg.show_topk:

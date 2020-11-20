@@ -15,7 +15,7 @@ test_feeder_args:
 
 
 # model
-model: net.lstm.Model
+model: net.sota.lstm.Model
 model_args:
   obs_len: 10
   pred_len: 10

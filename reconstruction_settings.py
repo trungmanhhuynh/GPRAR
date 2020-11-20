@@ -144,6 +144,7 @@ class ReconstructionSettings():
             self.dev = "cpu"
 
         self.result = dict()
+        self.loss_res = {'loss_rec':[], 'loss_reg':[], 'loss':[], 'ade': []}
         self.iter_info = dict()
         self.epoch_info = dict()
         self.meta_info = dict(epoch=0, iter=0)

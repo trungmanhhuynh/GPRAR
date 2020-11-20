@@ -1,6 +1,6 @@
-work_dir: ~/work_dir/prediction/jaad/ours/noisy
-weights: ~/work_dir/reconstruction/jaad/epoch50_model.pt
-ignore_weights: ['fcn']     # ignore last layer of recognition
+work_dir: /home/manhh/work_dir/prediction/jaad/ours/gt
+weights: /home/manhh/work_dir/reconstruction/jaad/epoch50_model.pt
+ignore_weights: [ 'fcn' ]     # ignore last layer of recognition
 
 # feeder
 feeder: feeder.feeder_prediction_jaad.Feeder
@@ -16,28 +16,28 @@ test_feeder_args:
   label_path: ../datasets/processed_data/prediction/jaad/val_metadata_gt.pkl
 
 # model
-model: net.pst_gcn.Model
+model: net.PNet.PNet
 model_args:
   obs_len: 10
   pred_len: 10
   loc_feats: 2
-  pose_feats: 3  
+  pose_feats: 3
   gridflow_feats: 24
   num_keypoints: 18
-  edge_importance_weighting: True 
+  edge_importance_weighting: True
   graph_args:
     layout: 'openpose'
     strategy: 'spatial'
 
 
 # training
-device: [0,2,3]
-batch_size: 256 
+device: [ 0,2,3 ]
+batch_size: 256
 test_batch_size: 256
 
 # optim
 base_lr: 0.1
-step: [20, 30, 40, 50]
+step: [ 20, 30, 40, 50 ]
 num_epoch: 50
 
 

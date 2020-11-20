@@ -1,5 +1,16 @@
 
+## Kinetics dataset
 
+Download pose features of kinetic dataset. The data in used in st-gcn method for action recognition. 
+Read https://github.com/yysijie/st-gcn/blob/master/OLD_README.md for more details.
+```
+$ cd ../datasets
+$ gdown https://drive.google.com/uc?id=1PvIM_FjDRVSKh_kRDiWBpKkNNp3fUH3o
+```
+Generate train/val data for recognition task:
+```
+$ python data_processing/recognition/kinetics_gendata.py --data_path ../datasets/kinetics/ --out_folder ../datasets/processed_data/recognition/kinetics/
+```
 ## JAAD dataset (http://data.nvision2.eecs.yorku.ca/JAAD_dataset/). 
 #### 1. Description 
 
@@ -11,13 +22,13 @@
 
   Make sure JAAD dataset available in a directory (mine is `~/github/datasets/`. This can be done by
        running the following steps
-       ```
-       >> cd ~/github/datasets/
-       >> git clone https://github.com/ykotseruba/JAAD.git 
-       >> cd JAAD 
-       >> sh download_clips.sh                 # download the JAAD clips 
-       >> sh split_clips_to_frames.sh          # parse clips into images 
-       ```
+```
+$ cd ../datasets/
+$ git clone https://github.com/ykotseruba/JAAD.git 
+$ cd JAAD 
+$ sh download_clips.sh                 # download the JAAD clips 
+$ sh split_clips_to_frames.sh          # parse clips into images 
+```
 
 #### 2. Generate processed data
 Create the processed features for JAAD dataset, and make sure the structure of data is at follow:  
@@ -33,7 +44,7 @@ Traj-STGCNN
         └── location
             ├── video_0001
             │   └── 00000_locations.json
-            │   └── ...     
+            │   └── ...     __
             ├── ...
         └── grid_flow
             ├── video_0001
@@ -42,27 +53,29 @@ Traj-STGCNN
             ├── ...
 ```
 
-#### 2.1 Generate pose data
+##### 2.1 Generate pose data
 To generate pose data, specify `JAAD_DATASET_DIR`, `PROCESSED_DATA_DIR`, `OPENPOSE_DIR` in `generate_pose_data_jaad.py`, then run:
 ```
 $ python utils/generate_pose_data_jaad.py
 ```
-#### 2.2 Generate location data
+##### 2.2 Generate location data
 To generate location data, specify `JAAD_DATASET_DIR` and `PROCESSED_DATA_DIR` in `generate_location_data_jaad.py`, then run:  
 ```
 $ python utils/generate_location_data_jaad.py
 ```
-#### 2.3 Generate grid optical flow data
+##### 2.3 Generate grid optical flow data
 
 ```
 $ conda activate flownet2_env
 $ python data_utils/JAAD/generate_flow_data_jaad.py          # generate optical flow data for each image
 $ python data_utils/JAAD/generate_gridflow_data_jaad.py
 ```
-#### 2.4 Generate pedestrian id for pose 
+##### 2.4 Generate pedestrian id for pose 
 ```
 $ python utils/assign_pose_id_jaad.py
 ```
+
+
 ## 3.Visualize
 
 #### 3.1 Visualize Pose + Location + Bounding Box
@@ -78,16 +91,5 @@ Example below visualize optical flow to images of JAAD/video0001.
 ```
 $ conda activate flownet2_env
 $ python data_utils/JAAD/visualize_flow_data.py --input_flow_dir processed_data/JAAD/flow/video_0001/ --output_image_dir video0001
-```
-
-
-#### Download Kinetics-skeleton dataset
-```
-gdown https://drive.google.com/uc?id=1PvIM_FjDRVSKh_kRDiWBpKkNNp3fUH3o
-```
-
-To generate train/val data with medium size (30% of data), run 
-```
-python data_utils/kinetics_skeleton/kinetics_gendata.py --data_path ../datasets/features/kinetics-skeleton/ --out_folder data/kinetics-skeleton/ --dsize medium
 ```
 

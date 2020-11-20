@@ -1,5 +1,4 @@
-work_dir: ./work_dir/recognition/kinetics_skeleton/ST_GCN
-# weights: ./pretrained_models/recognition/kinetics-st_gcn_T10.pt
+work_dir: /home/manhh/work_dir/recognition/kinetics
 
 # feeder
 feeder: feeder.feeder.Feeder
@@ -7,15 +6,15 @@ train_feeder_args:
   random_choose: True
   random_move: True
   window_size : 10
-  data_path: data/kinetics-skeleton/train_data.npy
-  label_path: data/kinetics-skeleton/train_label.pkl
+  data_path: ../datasets/processed_data/recognition/kinetics/train_data.npy
+  label_path: ../datasets/processed_data/recognition/kinetics/train_label.pkl
 test_feeder_args:
   window_size : 10
-  data_path: data/kinetics-skeleton/val_data.npy
-  label_path: data/kinetics-skeleton/val_label.pkl
+  data_path: ../datasets/processed_data/recognition/kinetics/val_data.npy
+  label_path: ../datasets/processed_data/recognition/kinetics/val_label.pkl
 
 # model
-model: net.st_gcn.Model
+model: net.RegNet.RegNet
 model_args:
   in_channels: 3
   num_class: 400
@@ -29,7 +28,7 @@ device: [0,1,2,3]
 batch_size: 256 
 test_batch_size: 256
 
-#optim
+# optim
 base_lr: 0.1
 step: [20, 30, 40, 50]
 num_epoch: 50

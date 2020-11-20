@@ -1,6 +1,9 @@
+import os
+import json
 import numpy as np
 import torch
 from prediction_settings import PredictionSettings
+
 
 class Prediction(PredictionSettings):
 
@@ -18,7 +21,6 @@ class Prediction(PredictionSettings):
                 # training
                 self.io.print_log('Training epoch: {}'.format(epoch))
                 self.train()
-                self.io.print_log('Done.')
 
                 # save model
                 if ((epoch + 1) % self.arg.save_interval == 0) or (
@@ -31,7 +33,11 @@ class Prediction(PredictionSettings):
                         epoch + 1 == self.arg.num_epoch):
                     self.io.print_log('Eval epoch: {}'.format(epoch))
                     self.test()
-                    # self.io.print_log('Done.')
+
+            self.io.print_log('Save log file')
+            outfile = os.path.join(self.arg.work_dir, "loss.json")
+            with open(outfile, 'w') as f:
+                json.dump(self.loss_res, f)
         # test phase
         elif self.arg.phase == 'test':
 
@@ -46,8 +52,6 @@ class Prediction(PredictionSettings):
             # evaluation
             self.io.print_log('Evaluation Start:')
             self.test()
-            self.io.print_log('Done.\n')
-
             # save the output of model
             if self.arg.save_result:
                 result_dict = dict(
@@ -62,7 +66,6 @@ class Prediction(PredictionSettings):
         loss_value = []
 
         for obs_loc, obs_pose, obs_gridflow, gt_location in loader:
-
             # get data
             obs_loc = obs_loc.float().to(self.dev)
             obs_pose = obs_pose.float().to(self.dev)
@@ -117,16 +120,24 @@ class Prediction(PredictionSettings):
                 # pred_loc = pred_loc.data.cpu().numpy()
                 # gt_location = gt_location.data.cpu().numpy()
                 ade, fde = self.calculate_ade_fde(pred_loc.data.cpu().numpy(), gt_location.data.cpu().numpy())
-                ade_value.append(ade)
-                fde_value.append(fde)
+                ade_value.append(ade.item())
+                fde_value.append(fde.item())
 
         self.result = np.concatenate(result_frag)
         if evaluation:
-
             self.epoch_info['mean_loss'] = np.mean(loss_value)
             self.epoch_info['ade'] = np.mean(ade_value)
             self.epoch_info['fde'] = np.mean(fde_value)
+            self.best_ade = self.epoch_info['ade'] if self.epoch_info['ade'] < self.best_ade else self.best_ade
+            self.best_fde = self.epoch_info['fde'] if self.epoch_info['fde'] < self.best_fde else self.best_fde
+            self.epoch_info['best_ade'] = self.best_ade
+            self.epoch_info['best_fde'] = self.best_fde
             self.show_epoch_info()
+
+            # save loss
+            self.loss_res['loss'].append(self.epoch_info['mean_loss'])
+            self.loss_res['ade'].append(self.epoch_info['ade'])
+            self.loss_res['fde'].append(self.epoch_info['fde'])
 
     def show_epoch_info(self):
         for k, v in self.epoch_info.items():
@@ -151,7 +162,7 @@ class Prediction(PredictionSettings):
     def adjust_lr(self):
         if self.arg.optimizer == 'SGD' and self.arg.step:
             lr = self.arg.base_lr * (
-                0.1**np.sum(self.meta_info['epoch'] >= np.array(self.arg.step)))
+                    0.1 ** np.sum(self.meta_info['epoch'] >= np.array(self.arg.step)))
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = lr
             self.lr = lr
@@ -171,7 +182,7 @@ class Prediction(PredictionSettings):
         gt_loc[:, :, 1] = (gt_loc[:, :, 1] + 0.5) * self.arg.H  # y
 
         # caculate ade/fde
-        ade = np.sqrt(np.mean((pred_loc - gt_loc)**2))
-        fde = np.sqrt(np.mean((pred_loc[:, -1] - gt_loc[:, -1])**2))
+        ade = np.sqrt(np.mean((pred_loc - gt_loc) ** 2))
+        fde = np.sqrt(np.mean((pred_loc[:, -1] - gt_loc[:, -1]) ** 2))
 
         return ade, fde

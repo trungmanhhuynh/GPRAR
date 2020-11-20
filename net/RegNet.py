@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from net.utils.graph import Graph
 from net.utils.st_gcn import st_gcn
 

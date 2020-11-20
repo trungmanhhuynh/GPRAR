@@ -16,7 +16,7 @@ test_feeder_args:
 
 
 # model
-model: net.tcnn_pose_gridflow.Model
+model: net.sota.tcnn_pose_gridflow.Model
 model_args:
   obs_len: 10
   pred_len: 10
