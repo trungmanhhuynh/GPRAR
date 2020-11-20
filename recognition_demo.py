@@ -4,10 +4,10 @@ import cv2
 import argparse
 from torchlight import str2bool
 
-from recognition_settings import RecognitionSettings
+from base_setting import BaseSetting
 import tools.utils as utils
 
-class RecognitionDemo(RecognitionSettings):
+class RecognitionDemo(BaseSetting):
 
     def start(self):
         self.io.print_log('Parameters:\n{}\n'.format(str(vars(self.arg))))

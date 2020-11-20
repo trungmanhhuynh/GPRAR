@@ -27,7 +27,7 @@ def weights_init(m):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
 
-class ReconstructionSettings():
+class BaseSetting():
 
     def __init__(self, argv=None):
 
@@ -43,9 +43,6 @@ class ReconstructionSettings():
         self.model = self.io.load_model(self.arg.model,
                                         **(self.arg.model_args))
         self.model.apply(weights_init)
-
-        self.lossReg = nn.CrossEntropyLoss()
-        self.lossRec = nn.MSELoss()
 
     def load_weights(self):
         if self.arg.weights:
@@ -107,7 +104,6 @@ class ReconstructionSettings():
     def load_arg(self, argv=None):
 
         parser = self.get_parser()
-
         # load arg form config file
         p = parser.parse_args(argv)
         if p.config is not None:
@@ -144,7 +140,6 @@ class ReconstructionSettings():
             self.dev = "cpu"
 
         self.result = dict()
-        self.loss_res = {'loss_rec':[], 'loss_reg':[], 'loss':[], 'ade': []}
         self.iter_info = dict()
         self.epoch_info = dict()
         self.meta_info = dict(epoch=0, iter=0)
@@ -158,9 +153,8 @@ class ReconstructionSettings():
 
         # processor
         parser.add_argument('--phase', default='train', help='must be train or test')
-        parser.add_argument('--save_result', type=str2bool, default=False, help='if ture, the output of the model will be stored')
         parser.add_argument('--start_epoch', type=int, default=0, help='start training from which epoch')
-        parser.add_argument('--num_epoch', type=int, default=80, help='stop training in which epoch')
+        parser.add_argument('--num_epoch', type=int, default=50, help='stop training in which epoch')
         parser.add_argument('--use_gpu', type=str2bool, default=True, help='use GPUs or not')
         parser.add_argument('--device', type=int, default=0, nargs='+', help='the indexes of GPUs for training or testing')
 
@@ -171,6 +165,7 @@ class ReconstructionSettings():
         parser.add_argument('--save_log', type=str2bool, default=True, help='save logging or not')
         parser.add_argument('--print_log', type=str2bool, default=True, help='print logging or not')
         parser.add_argument('--pavi_log', type=str2bool, default=False, help='logging on pavi or not')
+        parser.add_argument('--save_result', type=str2bool, default=False, help='if ture, the output of the model will be stored')
 
         # feeder
         parser.add_argument('--feeder', default='feeder.feeder', help='data loader will be used')
@@ -186,11 +181,6 @@ class ReconstructionSettings():
         parser.add_argument('--model_args', action=DictAction, default=dict(), help='the arguments of model')
         parser.add_argument('--weights', default=None, help='the weights for network initialization')
         parser.add_argument('--ignore_weights', type=str, default=[], nargs='+', help='the name of weights which will be ignored in the initialization')
-
-        # evaluation
-        parser.add_argument('--show_topk', type=int, default=[1, 5], nargs='+', help='which Top K accuracy will be shown')
-        parser.add_argument('--W', type=int, default=1080, help='frame width')
-        parser.add_argument('--H', type=int, default=1080, help='frame height')
 
         # optim
         parser.add_argument('--base_lr', type=float, default=0.01, help='initial learning rate')

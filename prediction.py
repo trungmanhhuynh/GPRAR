@@ -1,14 +1,24 @@
 import os
 import json
+import argparse
 import numpy as np
 import torch
-from prediction_settings import PredictionSettings
+import torch.nn as nn
+from base_setting import BaseSetting
 
 
-class Prediction(PredictionSettings):
+class Prediction(BaseSetting):
 
     def __init__(self, argv=None):
         super().__init__(argv)
+
+        # define loss function
+        self.loss = nn.MSELoss()
+
+        # log results
+        self.loss_res = {'loss':[], 'ade': [], 'fde': []}
+        self.best_ade = 1000
+        self.best_fde = 1000
 
     def start(self):
         self.io.print_log('Parameters:\n{}\n'.format(str(vars(self.arg))))
@@ -186,3 +196,22 @@ class Prediction(PredictionSettings):
         fde = np.sqrt(np.mean((pred_loc[:, -1] - gt_loc[:, -1]) ** 2))
 
         return ade, fde
+
+    @staticmethod
+    def get_parser(add_help=False):
+
+        parent_parser = BaseSetting.get_parser(add_help=False)
+        parser = argparse.ArgumentParser(add_help=add_help,
+                                        parents=[parent_parser],
+                                        description='Parser for Prediction')
+
+        parser.add_argument('--obs_len', type=int, default=10, help='observe length')
+        parser.add_argument('--pred_len', type=int, default=10, help='prediction length')
+        parser.add_argument('--loc_feats', type=int, default=3, help='grid flow feature size')
+        parser.add_argument('--pose_feats', type=int, default=3, help='grid flow feature size')
+        parser.add_argument('--num_keypoints', type=int, default=18, help='grid flow feature size')
+        parser.add_argument('--flow_feats', type=int, default=24, help='grid flow feature size')
+        parser.add_argument('--W', type=int, default=1080, help='frame width')
+        parser.add_argument('--H', type=int, default=1080, help='frame height')
+
+        return parser

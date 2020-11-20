@@ -1,13 +1,17 @@
-
+import argparse
 import numpy as np
+import torch.nn as nn
 import torch
 
-from recognition_settings import RecognitionSettings
+from base_setting import BaseSetting
 
-class Recognition(RecognitionSettings):
+class Recognition(BaseSetting):
 
     def __init__(self, argv=None):
         super().__init__(argv)
+
+        # define loss
+        self.loss = nn.CrossEntropyLoss()
 
     def start(self):
         self.io.print_log('Parameters:\n{}\n'.format(str(vars(self.arg))))
@@ -158,3 +162,15 @@ class Recognition(RecognitionSettings):
             self.lr = lr
         else:
             self.lr = self.arg.base_lr
+
+    @staticmethod
+    def get_parser(add_help=False):
+
+        parent_parser = BaseSetting.get_parser(add_help=False)
+        parser = argparse.ArgumentParser(add_help=add_help,
+                                        parents=[parent_parser],
+                                        description='Parser for Recognition')
+
+        parser.add_argument('--show_topk', type=int, default=[1, 5], nargs='+', help='which Top K accuracy will be shown')
+
+        return parser

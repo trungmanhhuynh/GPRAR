@@ -4,10 +4,10 @@ import cv2
 import argparse
 from torchlight import str2bool
 
-from reconstruction_settings import ReconstructionSettings
+from base_setting import BaseSetting
 import tools.utils as utils
 
-class ReconstructionDemo(ReconstructionSettings):
+class ReconstructionDemo(BaseSetting):
 
     def start(self):
         self.io.print_log('Parameters:\n{}\n'.format(str(vars(self.arg))))
