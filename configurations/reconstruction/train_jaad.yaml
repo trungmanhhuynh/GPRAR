@@ -1,6 +1,6 @@
-work_dir: /home/manhh/work_dir/reconstruction/jaad_wo_pretrained
-#weights: /home/manhh/work_dir/reconstruction/kinetics/epoch50_model.pt
-#ignore_weights: ['fcn']     # ignore last layer of recognition
+work_dir: /home/manhh/work_dir/reconstruction/jaad
+weights: /home/manhh/work_dir/reconstruction/kinetics/epoch50_model.pt
+ignore_weights: ['fcn']     # ignore last layer of recognition
 
 # feeder
 feeder: feeder.feeder_reconstruction_jaad.Feeder
@@ -19,7 +19,7 @@ test_feeder_args:
   label_path: ../datasets/processed_data/reconstruction/jaad/val_metadata.pkl
 
 # model
-model: net.RecPoseNet.RecPoseNet
+model: net.RegGenNet.RegGenNet
 model_args:
   in_channels: 3
   num_class: 2

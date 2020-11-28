@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from net.utils.graph import Graph
 from net.utils.st_gcn import st_gcn
 
+
 class RegNet(nn.Module):
     """Spatial temporal graph convolutional networks.
        Source code: https://github.com/yysijie/st-gcn/blob/master/net/st_gcn.py
@@ -65,7 +66,9 @@ class RegNet(nn.Module):
             self.edge_importance = [1] * len(self.st_gcn_networks)
 
         # fcn for prediction
-        self.fcn = nn.Conv2d(256, num_class, kernel_size=1)
+        self.fcn = nn.ModuleList((
+            nn.Conv2d(256, 128, kernel_size=1),
+            nn.Conv2d(128, num_class, kernel_size=1)))
 
     def forward(self, x):
 
@@ -87,7 +90,8 @@ class RegNet(nn.Module):
         x = x.view(N, M, -1, 1, 1).mean(dim=1)
 
         # prediction
-        x = self.fcn(x)
+        for _fcn in self.fcn:
+            x = _fcn(x)
         x = x.view(x.size(0), -1)
 
         return x
@@ -115,4 +119,3 @@ class RegNet(nn.Module):
         output = x.view(N, M, -1, t, v).permute(0, 2, 3, 4, 1)
 
         return output, feature
-

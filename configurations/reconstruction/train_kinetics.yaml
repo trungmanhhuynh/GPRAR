@@ -1,5 +1,5 @@
 work_dir: /home/manhh/work_dir/reconstruction/kinetics
-weights: /home/manhh/work_dir/recognition/kinetics/epoch50_model.pt
+# weights: /home/manhh/work_dir/recognition/kinetics/epoch50_model.pt
 
 # feeder
 feeder: feeder.feeder_reconstruction_kinetics.Feeder
@@ -18,7 +18,7 @@ test_feeder_args:
   label_path: ../datasets/processed_data/reconstruction/kinetics/val_label.pkl
 
 # model
-model: net.RecPoseNet.RecPoseNet
+model: net.RegGenNet.RegGenNet
 model_args:
   in_channels: 3
   num_class: 400
