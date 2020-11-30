@@ -1,8 +1,9 @@
 import os
 import argparse
+from tqdm import tqdm
 
 
-def generate_pose_data_jaad(args):
+def generate_pose_data_titan(args):
     """
         generate pose feature for jaad datasets using openpose. The script run the following command line
         for each video in the dataset.
@@ -15,8 +16,12 @@ def generate_pose_data_jaad(args):
         for dictionary structure of each frame data
     """
 
-    video_dir = os.path.join(args.data_path, "images")
+    video_dir = os.path.join(args.data_path)
+    if args.debug:
+        video_dir = video_dir[:2]
+    pbar = tqdm(total=len(os.listdir(video_dir)))
     for video_name in os.listdir(video_dir):
+        pbar.update(1)
 
         print("Generate pose data for : ", video_name)
 
@@ -25,24 +30,27 @@ def generate_pose_data_jaad(args):
             cmd = "cd {0} && {1} --model_pose COCO --image_dir {2} --write_json {3} --display 0 --render_pose 0".format(
                 args.openpose_path,
                 os.path.join(args.openpose_path, "build/examples/openpose/openpose.bin"),
-                os.path.join(video_dir, video_name),
+                os.path.join(video_dir, video_name, 'images'),
                 out_folder)
         else:  # pose 25
             out_folder = os.path.join(args.out_folder, "pose_25", video_name)
             cmd = "cd {0} && {1} --image_dir {2} --write_json {3} --display 0 --render_pose 0".format(
                 args.openpose_path,
                 os.path.join(args.openpose_path, "build/examples/openpose/openpose.bin"),
-                os.path.join(video_dir, video_name),
+                os.path.join(video_dir, video_name, 'images'),
                 out_folder)
 
         if not os.path.exists(out_folder):
             os.makedirs(out_folder)
 
+
         # execute the command
-        print(cmd)
+        # print(cmd)
         os.system(cmd)
         if args.debug:
             exit(1)
+
+        pbar.close()
 
 
 if __name__ == '__main__':
@@ -52,9 +60,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--openpose_path', default='/home/manhh/github/test/openpose')
     parser.add_argument(
-        '--data_path', default='/home/manhh/github/datasets/JAAD')
+        '--data_path', default='/home/manhh/github/datasets/titan_data/dataset/images_anonymized')
     parser.add_argument(
-        '--out_folder', default='/home/manhh/github/Traj-STGCNN/data/features/jaad')
+        '--out_folder', default='/home/manhh/github/datasets/processed_data/features/titan')
     parser.add_argument(
         '--pose_18', action="store_true", default=True, help='by default, use 18 keypoints')
     parser.add_argument(
@@ -63,4 +71,4 @@ if __name__ == '__main__':
         '--debug', action="store_true", default=False, help='debug mode')
     args = parser.parse_args()
 
-    generate_pose_data_jaad(args)
+    generate_pose_data_titan(args)
