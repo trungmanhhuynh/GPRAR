@@ -6,6 +6,7 @@ import torch.nn as nn
 import json
 from base_setting import BaseSetting
 
+
 class Reconstruction(BaseSetting):
 
     def __init__(self, argv=None):
@@ -16,7 +17,7 @@ class Reconstruction(BaseSetting):
         self.lossRec = nn.MSELoss()
 
         # log
-        self.loss_res = {'loss_rec': [], 'loss_reg':[], 'loss': [], 'ade': []}
+        self.loss_res = {'loss_rec': [], 'loss_reg': [], 'loss': [], 'ade': []}
 
     def start(self):
         self.io.print_log('Parameters:\n{}\n'.format(str(vars(self.arg))))
@@ -73,7 +74,6 @@ class Reconstruction(BaseSetting):
         loss_value = []
 
         for noisy_data, data, label in loader:
-
             # get data
             noisy_data = noisy_data.float().to(self.dev)
             data = data.float().to(self.dev)
@@ -184,7 +184,7 @@ class Reconstruction(BaseSetting):
     def adjust_lr(self):
         if self.arg.optimizer == 'SGD' and self.arg.step:
             lr = self.arg.base_lr * (
-                0.1**np.sum(self.meta_info['epoch'] >= np.array(self.arg.step)))
+                    0.1 ** np.sum(self.meta_info['epoch'] >= np.array(self.arg.step)))
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = lr
             self.lr = lr
@@ -195,15 +195,14 @@ class Reconstruction(BaseSetting):
 
         # input shape ~ (N, C, T, V , M)
 
-
         pose_res[:, 0, :, :, :] = (pose_res[:, 0, :, :, :] + 0.5) * self.arg.W  # x
         pose_res[:, 1, :, :, :] = (pose_res[:, 1, :, :, :] + 0.5) * self.arg.H  # y
-        pose_gt[:, 0, :, :, :] = (pose_gt[:, 0, :, :, :] + 0.5) * self.arg.W # x
-        pose_gt[:, 1, :, :, :] = (pose_gt[:, 1, :, :, :] + 0.5) * self.arg.H # y
+        pose_gt[:, 0, :, :, :] = (pose_gt[:, 0, :, :, :] + 0.5) * self.arg.W  # x
+        pose_gt[:, 1, :, :, :] = (pose_gt[:, 1, :, :, :] + 0.5) * self.arg.H  # y
 
-        temp=(pose_res[:, 0:2, :, :, :] - pose_gt[:, 0:2, :, :, :])**2
-        ade=np.sqrt(temp[:, 0, :, :, :] + temp[:, 1, :, :, :])
-        ade=np.mean(ade)
+        temp = (pose_res[:, 0:2, :, :, :] - pose_gt[:, 0:2, :, :, :]) ** 2
+        ade = np.sqrt(temp[:, 0, :, :, :] + temp[:, 1, :, :, :])
+        ade = np.mean(ade)
 
         return ade
 
@@ -212,11 +211,12 @@ class Reconstruction(BaseSetting):
 
         parent_parser = BaseSetting.get_parser(add_help=False)
         parser = argparse.ArgumentParser(add_help=add_help,
-                                        parents=[parent_parser],
-                                        description='Parser for Reconstruction')
+                                         parents=[parent_parser],
+                                         description='Parser for Reconstruction')
 
         parser.add_argument('--W', type=int, default=1080, help='frame width')
         parser.add_argument('--H', type=int, default=1080, help='frame height')
-        parser.add_argument('--show_topk', type=int, default=[1, 5], nargs='+', help='which Top K accuracy will be shown')
+        parser.add_argument('--show_topk', type=int, default=[1, 5], nargs='+',
+                            help='which Top K accuracy will be shown')
 
         return parser

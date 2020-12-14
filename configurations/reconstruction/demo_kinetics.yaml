@@ -1,17 +1,16 @@
-weights: ./work_dir/reconstruction/kinetics/epoch50_model.pt
+weights: /home/manhh/work_dir/reconstruction/kinetics/epoch50_model.pt
 
 # feeder
-feeder: feeder.feeder_reconstruction.Feeder
+feeder: feeder.feeder_reconstruction_kinetics.Feeder
 test_feeder_args:
   random_choose: False
-  window_size: 10 
+  window_size: 10
   random_noise: True
-  data_path: data/reconstruction/kinetics/val_data.npy
-  label_path: data/reconstruction/kinetics/val_label.pkl
-
+  data_path: /home/manhh/github/datasets/processed_data/reconstruction/kinetics/val_data.npy
+  label_path: /home/manhh/github/datasets/processed_data/reconstruction/kinetics/val_label.pkl
 
 # model
-model: net.rst_gcn_kinetics.Model
+model: net.RegGenNet.RegGenNet
 model_args:
   in_channels: 3
   num_class: 400
@@ -19,14 +18,8 @@ model_args:
   graph_args:
     layout: 'openpose'
     strategy: 'spatial'
-  window_size: 10
-
 
 # test 
 phase: test
 device: [0]
 test_batch_size: 1
-gen_video: True
-res_video_dir: results/reconstruction/kinetics/video
-gen_image: True
-res_image_dir: results/reconstruction/kinetics/image

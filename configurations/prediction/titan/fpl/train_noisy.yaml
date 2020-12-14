@@ -1,17 +1,17 @@
-work_dir: ./work_dir/prediction/jaad/tcnn_pose_gridflow/gt
+work_dir: ./work_dir/prediction/titan/fpl/noisy
 
 # feeder
 feeder: feeder.feeder_prediction_jaad.Feeder
 train_feeder_args:
   obs_len: 10
   pred_len: 10
-  data_path: ../datasets/processed_data/prediction/jaad/train_data_impute.pkl
-  label_path: ../datasets/processed_data/prediction/jaad/train_metadata_impute.pkl
+  data_path: /home/manhh/github/datasets/processed_data/prediction/titan/train_data_noisy.pkl
+  label_path: /home/manhh/github/datasets/processed_data/prediction/titan/train_metadata_noisy.pkl
 test_feeder_args:
   obs_len: 10
   pred_len: 10
-  data_path: ../datasets/processed_data/prediction/jaad/val_data_gt.pkl
-  label_path: ../datasets/processed_data/prediction/jaad/val_metadata_gt.pkl
+  data_path: /home/manhh/github/datasets/processed_data/prediction/titan/val_data_noisy.pkl
+  label_path: /home/manhh/github/datasets/processed_data/prediction/titan/val_metadata_noisy.pkl
 
 
 # model
@@ -25,7 +25,7 @@ model_args:
   gridflow_feats: 24
 
 # training
-device: [0,2,3]
+device: [0,1,2,3]
 batch_size: 256 
 test_batch_size: 256
 

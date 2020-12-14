@@ -25,7 +25,7 @@ model_args:
   gridflow_feats: 24
 
 # training
-device: [0,2,3]
+device: [0,1,2,3]
 batch_size: 256 
 test_batch_size: 256
 

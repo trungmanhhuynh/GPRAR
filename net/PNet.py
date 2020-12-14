@@ -152,6 +152,9 @@ class PNet(nn.Module):
             x2, _ = gcn(x2, self.rec_A * importance)  # (N * M, C', T, V)
 
         # reshape for prediction
+
+        # obs_loc = x2[:, :2, :, 8] + x2[:, :2, :, 11]  # (N * M, L, To)
+        # obs_loc = obs_loc.unsqueeze(3) # (N, L, To, 1) given M=1
         obs_loc = obs_loc.permute(0, 2, 1).unsqueeze(3)  # (N, L, To, 1)
         obs_gridflow = obs_gridflow.permute(0, 2, 1).unsqueeze(3)  # (N, G, To, 1)
 
@@ -250,14 +253,15 @@ class Predictor(nn.Module):
 
         #  action network
         self.encoder_action = nn.Sequential(
-            conv2d(in_channels=self.action_feats * self.num_keypoints, out_channels=32, kernel_size=3, stride=1, padding=0),
+            conv2d(in_channels=self.action_feats * self.num_keypoints, out_channels=32, kernel_size=3, stride=1,
+                   padding=0),
             conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=0),
             conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=0),
             conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=0)
         )
 
         # intermediate layers for concatenating features
-        self.intermediate = conv2d(in_channels=128 * 3, out_channels=128, kernel_size=1, stride=1, padding=0)
+        self.intermediate = conv2d(in_channels=128 * 4, out_channels=128, kernel_size=1, stride=1, padding=0)
         # decoder network
         self.decoder = nn.Sequential(
             conv2d(in_channels=128, out_channels=256, kernel_size=1, stride=1, padding=0),
@@ -288,10 +292,10 @@ class Predictor(nn.Module):
         inter_loc = self.encoder_location(obs_loc)
         inter_pose = self.encoder_pose(obs_pose)
         inter_gridflow = self.encoder_gridflow(obs_gridflow)
-        # inter_act = self.encoder_action(obs_act)
+        inter_act = self.encoder_action(obs_act)
 
         # concatenate encoded features
-        f = torch.cat((inter_loc, inter_pose, inter_gridflow), dim=1)
+        f = torch.cat((inter_loc, inter_pose, inter_gridflow, inter_act), dim=1)
         f = self.intermediate(f)
 
         # decode

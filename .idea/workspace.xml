@@ -28,7 +28,7 @@
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../CytEnet" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/configurations/prediction/titan" />
     <property name="settings.editor.selected.configurable" value="editor.preferences.fonts.default" />
   </component>
   <component name="RecentsManager">
@@ -36,6 +36,10 @@
       <recent name="Z:\github\Traj-STGCNN\data_processing\recognition" />
       <recent name="Z:\github\Traj-STGCNN\tools" />
       <recent name="Z:\github\Traj-STGCNN\net\sota" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="Z:\github\Traj-STGCNN\configurations\prediction\titan" />
+      <recent name="Z:\github\Traj-STGCNN\configurations\prediction\titan\fpl" />
     </key>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
@@ -81,6 +85,26 @@
       <workItem from="1606687707411" duration="453000" />
       <workItem from="1606689875666" duration="224000" />
       <workItem from="1606691009894" duration="5453000" />
+      <workItem from="1606755811548" duration="3450000" />
+      <workItem from="1606841493487" duration="2197000" />
+      <workItem from="1606866732662" duration="1777000" />
+      <workItem from="1606925050877" duration="3206000" />
+      <workItem from="1607021278878" duration="2642000" />
+      <workItem from="1607115557235" duration="1317000" />
+      <workItem from="1607121264745" duration="5285000" />
+      <workItem from="1607141878734" duration="4335000" />
+      <workItem from="1607206757053" duration="3236000" />
+      <workItem from="1607228303332" duration="2367000" />
+      <workItem from="1607271914202" duration="2577000" />
+      <workItem from="1607290897814" duration="1120000" />
+      <workItem from="1607317137298" duration="2795000" />
+      <workItem from="1607377038949" duration="6946000" />
+      <workItem from="1607398101991" duration="3722000" />
+      <workItem from="1607449069451" duration="12218000" />
+      <workItem from="1607489057380" duration="673000" />
+      <workItem from="1607537954073" duration="2499000" />
+      <workItem from="1607571946490" duration="823000" />
+      <workItem from="1607914165996" duration="1823000" />
     </task>
     <servers />
   </component>
@@ -93,29 +117,30 @@
     </state>
     <state x="698" y="344" key="#Notifications/-1920.0.1536.832/0.0.1920.1040@0.0.1920.1040" timestamp="1605201134590" />
     <state x="598" y="286" key="#Notifications/62.0.1474.864@62.0.1474.864" timestamp="1605584328642" />
-    <state x="-1431" y="325" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1606608093153">
+    <state x="-1431" y="325" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1606756224828">
       <screen x="-1920" y="0" width="1920" height="1080" />
     </state>
-    <state x="-1431" y="325" key="#com.intellij.fileTypes.FileTypeChooser/-3840.0.1536.824/-1920.0.1920.1080/0.0.1536.824@-1920.0.1920.1080" timestamp="1606608093153" />
+    <state x="-1431" y="325" key="#com.intellij.fileTypes.FileTypeChooser/-3840.0.1536.824/-1920.0.1920.1080/0.0.1536.824@-1920.0.1920.1080" timestamp="1606756224828" />
     <state x="-1296" y="228" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog" timestamp="1605892206052">
       <screen x="-1920" y="0" width="1920" height="1080" />
     </state>
     <state x="-1296" y="228" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog/-3840.0.1536.824/-1920.0.1920.1080/0.0.1536.824@-1920.0.1920.1080" timestamp="1605892206052" />
-    <state x="-861" y="266" key="FileChooserDialogImpl" timestamp="1606521768670">
+    <state x="-1213" y="245" width="564" height="611" key="FileChooserDialogImpl" timestamp="1606970876598">
       <screen x="-1920" y="0" width="1920" height="1080" />
     </state>
     <state x="1094" y="266" key="FileChooserDialogImpl/-1858.0.1474.864/78.0.1842.1080@78.0.1842.1080" timestamp="1605655789142" />
     <state x="1059" y="256" key="FileChooserDialogImpl/-1920.0.1536.832/0.0.1920.1040@0.0.1920.1040" timestamp="1605211145162" />
-    <state x="-861" y="266" key="FileChooserDialogImpl/-3840.0.1536.824/-1920.0.1920.1080/0.0.1536.824@-1920.0.1920.1080" timestamp="1606521768670" />
+    <state x="-1213" y="245" width="564" height="611" key="FileChooserDialogImpl/-3840.0.1536.824/-1920.0.1920.1080/0.0.1536.824@-1920.0.1920.1080" timestamp="1606970876598" />
     <state x="264" y="38" key="SettingsEditor" timestamp="1605716538874">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="264" y="38" key="SettingsEditor/-1920.0.1536.832/0.0.1920.1040@0.0.1920.1040" timestamp="1605716538874" />
-    <state x="-1818" y="0" width="1448" height="880" key="dock-window-1" timestamp="1605548316946">
-      <screen x="-1870" y="0" width="1486" height="864" />
+    <state x="214" y="0" width="1328" height="882" key="dock-window-1" timestamp="1607274550191">
+      <screen x="0" y="0" width="1536" height="824" />
     </state>
     <state x="-1818" y="0" width="1448" height="880" key="dock-window-1/-1870.0.1486.864/62.0.1858.1080@62.0.1858.1080" timestamp="1605548316946" />
     <state x="-1920" y="0" width="1550" height="880" key="dock-window-1/-1920.0.1536.832/0.0.1920.1040@0.0.1920.1040" timestamp="1605288811948" />
+    <state x="214" y="0" width="1328" height="882" key="dock-window-1/-3840.0.1536.824/-1920.0.1920.1080/0.0.1536.824@-1920.0.1920.1080" timestamp="1607274550191" />
     <state x="560" y="45" width="840" height="1034" key="search.everywhere.popup" timestamp="1605571207526">
       <screen x="62" y="0" width="1858" height="1080" />
     </state>

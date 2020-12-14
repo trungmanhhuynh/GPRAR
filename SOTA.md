@@ -7,11 +7,14 @@ $ git clone https://github.com/abduallahmohamed/Social-STGCNN.git
 ```
 
 Generate train/val data 
+JAAD dataset
 ```
 $ python data_processing/prediction/generate_data_jaad_social-stgcnn.py --obs_type gt
 $ python data_processing/prediction/generate_data_jaad_social-stgcnn.py --obs_type raw
 $ python data_processing/prediction/generate_data_jaad_social-stgcnn.py --obs_type impute
 ```
+TITAN
+
 
 Modifications:  
 In utils.py: add the below codes 
@@ -29,12 +32,19 @@ Change function `ade()` and `fde()` to `ade_pixel()`
 and `fde_pixel()`. Implement these functions in `metric.py` 
 
 
-Train model:
+Train JAAD model:
 ```
 $ python train.py --lr 0.01 --n_stgcnn 1 --n_txpcnn 5  --dataset jaad_gt --tag jaad_gt --use_lrschd --num_epochs 50 --obs_seq_len 10 --pred_seq_len 10
 $ python train.py --lr 0.01 --n_stgcnn 1 --n_txpcnn 5  --dataset jaad_gt --tag jaad_impute --use_lrschd --num_epochs 50 --obs_seq_len 10 --pred_seq_len 10
 $ python train.py --lr 0.01 --n_stgcnn 1 --n_txpcnn 5  --dataset jaad_gt --tag jaad_raw --use_lrschd --num_epochs 50 --obs_seq_len 10 --pred_seq_len 10
 ```
+Train TITAN model:
+```
+$ python train.py --lr 0.01 --n_stgcnn 1 --n_txpcnn 5  --dataset titan_gt --tag titan_gt --use_lrschd --num_epochs 50 --obs_seq_len 10 --pred_seq_len 10
+$ python train.py --lr 0.01 --n_stgcnn 1 --n_txpcnn 5  --dataset titan_impute --tag titan_impute --use_lrschd --num_epochs 50 --obs_seq_len 10 --pred_seq_len 10
+$ python train.py --lr 0.01 --n_stgcnn 1 --n_txpcnn 5  --dataset titan_raw --tag titan_raw --use_lrschd --num_epochs 50 --obs_seq_len 10 --pred_seq_len 10
+```
+
 Test model: 
 ```
 $ python test.py 

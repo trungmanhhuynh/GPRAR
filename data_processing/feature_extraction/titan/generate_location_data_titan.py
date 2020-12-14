@@ -2,6 +2,7 @@ import sys
 import os
 import csv
 import json
+import cv2
 import numpy as np
 import argparse
 
@@ -32,7 +33,7 @@ def generate_frame_data(args):
     # read csv data of each clip
     csv_file_list = os.listdir(args.data_path)
     if args.debug:
-        csv_file_list = csv_file_list[:10]
+        csv_file_list = csv_file_list[:2]
 
     for csv_file in csv_file_list:
         processed_video_dir = os.path.join(args.out_folder, csv_file[:-4])
@@ -65,26 +66,66 @@ def generate_frame_data(args):
                 fdata['width'] = float(fdata['width'])
 
                 person_data = {'person_id': fdata['obj_track_id'],
-                               'bbox': [fdata['left'], fdata['top'], fdata['left'] + fdata['width'],
-                                        fdata['top'] + fdata['height']],
-                               'center': [fdata['left'] + 0.5 * fdata['width'],
-                                          fdata['top'] + 0.5 * fdata['height']],
+                               'bbox': [int(fdata['left']), int(fdata['top']), int(fdata['left'] + fdata['width']),
+                                        int(fdata['top'] + fdata['height'])],
+                               'center': [int(fdata['left'] + 0.5 * fdata['width']),
+                                          int(fdata['top'] + 0.5 * fdata['height'])],
                                'action_label': fdata['attributes.Atomic Actions'],
                                'action_index': action_index_dict[fdata['attributes.Atomic Actions']]}
                 location_data['people'].append(person_data)
 
-            outfile = os.path.join(processed_video_dir, "{:05d}_locations.json".format(int(img_name[:-4])))
+            outfile = os.path.join(processed_video_dir, "{:06d}_locations.json".format(int(img_name[:-4])))
             with open(outfile, 'w') as f:
                  json.dump(location_data, f)
+
+            # plot location on images
+            if args.plot:
+                plot_location(location_data, csv_file[:-4], img_name, args)
     print("Done")
+
+
+def plot_location(location_data, video_name, img_name, args):
+    """ Plot locations of all pedestrians in a frame
+
+        Args:
+           location_data (dict)
+           video_name
+           img_name
+           args
+    """
+
+    output_folder = os.path.join(args.plot_path, video_name, "images")
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    # plot image
+    img = cv2.imread(os.path.join(args.image_path, video_name, "images", img_name), 1)
+    img = img.astype(np.uint8)
+
+    # plot bounding box and center of each pedestrian
+    for p in location_data['people']:
+        cv2.circle(img, (p['center'][0], p['center'][1]), 5, (0, 0, 255), -1)
+        img = cv2.rectangle(img, (p['bbox'][0], p['bbox'][1]),  (p['bbox'][2], p['bbox'][3]),  (0, 0, 255), 1)
+
+    # save image
+    filename = os.path.join(output_folder, img_name)
+    cv2.imwrite(filename, img)
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='generate location data in each frame JAAD')
     parser.add_argument(
-        '--data_path', default='/home/manhh/github/datasets/titan_data/dataset/titan_0_4')
+        '--data_path', default='/home/manhh/github/datasets/titan/dataset/titan_0_4')
     parser.add_argument(
         '--out_folder', default='/home/manhh/github/datasets/processed_data/features/titan/location')
+    parser.add_argument(
+        '--image_path', default='/home/manhh/github/datasets/titan/dataset/images_anonymized')
+    parser.add_argument(
+        '--plot', action="store_true", default=False, help='plot data')
+    parser.add_argument(
+        '--plot_path', default='./plot_location')
     parser.add_argument(
         '--width', type=int, default=2704)
     parser.add_argument(
