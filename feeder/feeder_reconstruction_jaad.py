@@ -51,11 +51,16 @@ class Feeder(torch.utils.data.Dataset):
         self.load_data(mmap)
 
     def load_data(self, mmap):
-        # data: N C V T M
+        """
+            Args:
+                data: N C V T M
+                bbox: (N, T, 4)
+
+        """
 
         # load label
         with open(self.label_path, 'rb') as f:
-            self.video_names, self.image_names, self.action_labels, self.action_indexes = pickle.load(f)
+            self.bbox, self.video_names, self.image_names, self.action_labels, self.action_indexes = pickle.load(f)
 
         # load data
         if mmap:
@@ -81,6 +86,9 @@ class Feeder(torch.utils.data.Dataset):
         # get data
         data_numpy = np.array(self.data[index])
         label = self.action_indexes[index]
+        video_name = self.video_names[index]
+        image_name = self.image_names[index]
+        bbox = np.array(self.bbox[index])
 
         # processing
         if self.random_choose:
@@ -94,4 +102,4 @@ class Feeder(torch.utils.data.Dataset):
         if self.random_noise:
             noisy_data = tools.random_noise(noisy_data)
 
-        return noisy_data, data_numpy, label
+        return noisy_data, data_numpy, label, video_name, image_name, bbox

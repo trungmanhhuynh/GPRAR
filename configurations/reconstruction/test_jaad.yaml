@@ -1,13 +1,14 @@
 weights: /home/manhh/work_dir/reconstruction/jaad/epoch50_model.pt
+work_dir: ./work_dir/reconstruction/jaad/
 
 # feeder
 feeder: feeder.feeder_reconstruction_jaad.Feeder
 test_feeder_args:
   random_choose: False
   window_size: 10
-  random_noise: True
-  data_path: /home/manhh/github/datasets/processed_data/reconstruction/jaad/val_data.npy
-  label_path:  /home/manhh/github/datasets/processed_data/reconstruction/jaad/val_metadata.pkl
+  random_noise: False
+  data_path: /home/manhh/github/datasets/processed_data/reconstruction/jaad/test_data.npy
+  label_path: /home/manhh/github/datasets/processed_data/reconstruction/jaad/test_metadata.pkl
 
 # model
 model: net.RegGenNet.RegGenNet
@@ -22,4 +23,4 @@ model_args:
 # test
 phase: test
 device: [0, 1, 2, 3]
-test_batch_size: 64
+test_batch_size: 256

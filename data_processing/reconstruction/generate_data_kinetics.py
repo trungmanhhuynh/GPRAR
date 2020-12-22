@@ -39,9 +39,8 @@ def generate_data(args, mode):
     with open(label_path) as f:
         label_info = json.load(f)
 
-    if(args.debug):
-
-        sample_name = sample_name[:10000]
+    if (args.debug):
+        sample_name = sample_name[:20000]
 
     sample_id = [name.split('.')[0] for name in sample_name]
     label = np.array(
@@ -59,7 +58,7 @@ def generate_data(args, mode):
     print("Total number of video having skeleton: ", len(sample_name))
 
     # generate data_sample from each video
-    all_data, all_label = [], []
+    all_data, all_label, all_bbox = [], [], []
     for i, video_name in enumerate(sample_name):
         video_path = os.path.join(data_path, video_name)
         with open(video_path, 'r') as f:
@@ -79,20 +78,42 @@ def generate_data(args, mode):
         for start_frame in range(0, num_frames - args.T, args.slide):
 
             data_numpy = np.zeros((3, args.T, 18, args.max_num_person))
+            bbox_numpy = np.zeros((4, args.T, args.max_num_person))
             for frame_index, frame_info in enumerate(video_info['data'][start_frame: start_frame + args.T]):
                 # frame_index = frame_info['frame_index']
                 for m, skeleton_info in enumerate(frame_info["skeleton"]):
                     if m >= args.max_num_person:
                         break
 
-                    pose = skeleton_info['pose']
-                    score = skeleton_info['score']
+                    pose = np.asarray(skeleton_info['pose'])
+                    score = np.asarray(skeleton_info['score'])
+
+                    # calculate bounding box
+                    xmin = 20000
+                    ymin = 20000
+                    xmax = -1
+                    ymax = -1
+                    for i in range(0, 18):
+                        if score[i] != 0:
+                            if pose[2 * i] <= xmin: xmin = pose[2 * i]
+                            if pose[2 * i] >= xmax: xmax = pose[2 * i]
+                            if pose[2 * i + 1] <= ymin: ymin = pose[2 * i + 1]
+                            if pose[2 * i + 1] >= ymax: ymax = pose[2 * i + 1]
+
+                    if (xmax - xmin == 0) or (ymax - ymin == 0):
+                        continue
+
+                    # scale pose to pre-defined bbox
+                    pose[0::2] = (pose[0::2] - xmin) / (xmax - xmin) - 0.5
+                    pose[1::2] = (pose[1::2] - ymin) / (ymax - ymin) - 0.5
+
+                    # normalize
                     data_numpy[0, frame_index, :, m] = pose[0::2]
                     data_numpy[1, frame_index, :, m] = pose[1::2]
                     data_numpy[2, frame_index, :, m] = score
+                    bbox_numpy[:, frame_index, m] = np.array([xmin, ymin, xmax, ymax])
 
             # centralization
-            data_numpy[0:2] = data_numpy[0:2] - 0.5
             data_numpy[0][data_numpy[2] == 0] = 0
             data_numpy[1][data_numpy[2] == 0] = 0
 
@@ -103,10 +124,13 @@ def generate_data(args, mode):
                 else:
                     all_data.append(np.expand_dims(data_numpy[:, :, :, m], axis=3))
                     all_label.append(video_label)
+                    all_bbox.append(np.expand_dims(bbox_numpy[:, :, m], axis=2))
 
     all_data = np.concatenate(all_data, axis=3)
+    all_bbox = np.concatenate(all_bbox, axis=2)  # (4, T, N)
     C, T, V, N = all_data.shape
     all_data = np.expand_dims(all_data.transpose(3, 0, 1, 2), axis=4)  # change to shape (N, C, T, V, 1)
+    all_bbox = all_bbox.transpose(2, 1, 0)  # (N, T, 4)
 
     # write to file
     data_out_path = os.path.join(args.out_folder, "{}_data.npy".format(mode))
@@ -119,7 +143,7 @@ def generate_data(args, mode):
 
     label_out_path = os.path.join(args.out_folder, "{}_label.pkl".format(mode))
     with open(label_out_path, 'wb') as f:
-        pickle.dump((sample_name, all_label), f)
+        pickle.dump((sample_name, all_label, all_bbox), f)
 
     print("size of data:", fp.shape)
     print("save data to file: ", data_out_path)
@@ -133,11 +157,13 @@ if __name__ == "__main__":
     parser.add_argument(
         '--data_path', default='/home/manhh/github/datasets/kinetics')
     parser.add_argument(
-        '--out_folder', default='data/reconstruction/kinetics')
+        '--out_folder', default='/home/manhh/github/datasets/processed_data/reconstruction/kinetics')
     parser.add_argument(
         '--T', type=int, default=10, help='number of frames per sample')
     parser.add_argument(
         '--slide', type=int, default=5, help='frame gap ')
+    parser.add_argument(
+        '--bbox', type=list, default=[-128, -128, 128, 128], help='scaled bounding box')
     parser.add_argument(
         '--max_num_person', type=int, default=5, help='maximum number of person every args.T frames')
     parser.add_argument(

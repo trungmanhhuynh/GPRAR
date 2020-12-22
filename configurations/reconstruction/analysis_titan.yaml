@@ -1,0 +1,5 @@
+image_dir: None
+res_image_dir: ./results/reconstruction/titan/image
+gen_image_res: True
+res_file: ./work_dir/reconstruction/titan/test_result.pkl
+debug: False

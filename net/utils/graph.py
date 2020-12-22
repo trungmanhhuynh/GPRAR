@@ -123,10 +123,6 @@ class Graph():
             self.A = A
 
 
-
-
-
-
         else:
             raise ValueError("Do Not Exist This Strategy")
 

@@ -140,7 +140,6 @@ class BaseSetting():
         else:
             self.dev = "cpu"
 
-        self.result = dict()
         self.iter_info = dict()
         self.epoch_info = dict()
         self.meta_info = dict(epoch=0, iter=0)

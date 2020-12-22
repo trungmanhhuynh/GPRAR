@@ -6,7 +6,6 @@ from reconstruction_demo import ReconstructionDemo
 from prediction import Prediction
 from prediction_demo import PredictionDemo
 
-
 if __name__ == "__main__":
 
     # Recognize actions

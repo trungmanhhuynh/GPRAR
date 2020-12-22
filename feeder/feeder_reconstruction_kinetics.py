@@ -52,10 +52,11 @@ class Feeder(torch.utils.data.Dataset):
 
     def load_data(self, mmap):
         # data: N C V T M
+        #  self.bbox (N , T , 4)
 
         # load label
         with open(self.label_path, 'rb') as f:
-            self.sample_name, self.label = pickle.load(f)
+            self.sample_name, self.label, self.bbox = pickle.load(f)
 
         # load data
         if mmap:
@@ -79,17 +80,16 @@ class Feeder(torch.utils.data.Dataset):
         # get data
         data_numpy = np.array(self.data[index])
         label = self.label[index]
+        bbox = np.array(self.bbox[index])
 
         # processing
         if self.random_choose:
             data_numpy = tools.random_choose(data_numpy, self.window_size)
         elif self.window_size > 0:
             data_numpy = tools.auto_pading(data_numpy, self.window_size)
-        if self.random_move:
-            data_numpy = tools.random_move(data_numpy)
 
         noisy_data = np.copy(data_numpy)
         if self.random_noise:
             noisy_data = tools.random_noise(noisy_data)
 
-        return noisy_data, data_numpy, label
+        return noisy_data, data_numpy, label, "None", "None", bbox

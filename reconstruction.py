@@ -42,6 +42,7 @@ class Reconstruction(BaseSetting):
                 if ((epoch + 1) % self.arg.eval_interval == 0) or (
                         epoch + 1 == self.arg.num_epoch):
                     self.io.print_log('Eval epoch: {}'.format(epoch))
+                    self.rec_result = []
                     self.test()
             self.io.print_log('Save log file')
             outfile = os.path.join(self.arg.work_dir, "loss.json")
@@ -50,6 +51,7 @@ class Reconstruction(BaseSetting):
 
         # test phase
         elif self.arg.phase == 'test':
+
             # the path of weights must be appointed
             if self.arg.weights is None:
                 raise ValueError('Please appoint --weights.')
@@ -57,15 +59,14 @@ class Reconstruction(BaseSetting):
             self.io.print_log('Weights: {}.'.format(self.arg.weights))
 
             # evaluation
+            self.rec_result = []
+            self.result = dict()
             self.io.print_log('Evaluation Start:')
             self.test()
 
             # save the output of model
             if self.arg.save_result:
-                result_dict = dict(
-                    zip(self.data_loader['test'].dataset.sample_name,
-                        self.result))
-                self.io.save_pkl(result_dict, 'test_result.pkl')
+                self.io.save_pkl(self.rec_result, 'test_result.pkl')
 
     def train(self):
         self.model.train()
@@ -73,7 +74,7 @@ class Reconstruction(BaseSetting):
         loader = self.data_loader['train']
         loss_value = []
 
-        for noisy_data, data, label in loader:
+        for noisy_data, data, label, video_name, image_name, bbox in loader:
             # get data
             noisy_data = noisy_data.float().to(self.dev)
             data = data.float().to(self.dev)
@@ -112,29 +113,36 @@ class Reconstruction(BaseSetting):
         label_frag = []
         meanADE = []
 
-        for noisy_data, data, label in loader:
+        for noisy_data, gt_data, label, video_name, image_name, bbox in loader:
 
             # get data
             noisy_data = noisy_data.float().to(self.dev)
-            data = data.float().to(self.dev)
+            gt_data = gt_data.float().to(self.dev)
             label = label.long().to(self.dev)
 
             # inference
             with torch.no_grad():
                 output_reg, output_rec = self.model(noisy_data)
+
             result_frag.append(output_reg.data.cpu().numpy())
+
+            for i in range(noisy_data.shape[0]):
+                rec_result_frag = {'in_pose': noisy_data[i].cpu().numpy(), 'out_pose': output_rec[i].cpu().numpy(),
+                                   'gt_pose': gt_data[i].cpu().numpy(), "bbox": bbox[i].cpu().numpy(),
+                                   'video_name': video_name[i], 'image_name': image_name[i]}
+                self.rec_result.append(rec_result_frag)
 
             # get loss
             if evaluation:
                 lossReg = self.lossReg(output_reg, label)
-                lossRec = self.lossRec(output_rec, data)
+                lossRec = self.lossRec(output_rec, gt_data)
                 loss = lossReg + lossRec
                 loss_value.append(loss.item())
                 loss_rec_value.append(lossRec.item())
                 loss_reg_value.append(lossReg.item())
                 label_frag.append(label.data.cpu().numpy())
 
-                ade = self.cal_ade(output_rec.data.cpu().numpy(), data.data.cpu().numpy())
+                ade = self.cal_ade(output_rec.data.cpu().numpy(), gt_data.data.cpu().numpy(), bbox.data.cpu().numpy())
                 meanADE.append(ade.item())
 
         self.result = np.concatenate(result_frag)
@@ -191,17 +199,30 @@ class Reconstruction(BaseSetting):
         else:
             self.lr = self.arg.base_lr
 
-    def cal_ade(self, pose_res, pose_gt):
+    def cal_ade(self, pose_res, pose_gt, bbox):
+        """
+            Args:
 
+            Shape:
+                bbox: (N, T , 4)
+                pose_res:  (N, C, T, V , M)
+                pose_gt:  (N, C, T, V , M)
+
+            Returns:
+        """
         # input shape ~ (N, C, T, V , M)
+        N, C, T, V, M = pose_res.shape
+        bbox = np.transpose(bbox, (0, 2, 1))  # (N, 4, T)
+        bbox =np.expand_dims(bbox, axis=[3, 4])
+        bbox = np.repeat(bbox, V, axis=3)   # (N, 4, T, V, M)
 
-        pose_res[:, 0, :, :, :] = (pose_res[:, 0, :, :, :] + 0.5) * self.arg.W  # x
-        pose_res[:, 1, :, :, :] = (pose_res[:, 1, :, :, :] + 0.5) * self.arg.H  # y
-        pose_gt[:, 0, :, :, :] = (pose_gt[:, 0, :, :, :] + 0.5) * self.arg.W  # x
-        pose_gt[:, 1, :, :, :] = (pose_gt[:, 1, :, :, :] + 0.5) * self.arg.H  # y
+        pose_res[:, 0] = ((pose_res[:, 0] + 0.5) * (bbox[:, 2] - bbox[:, 0]) + bbox[:, 0]) * self.arg.W  # x
+        pose_res[:, 1] = ((pose_res[:, 1] + 0.5) * (bbox[:, 3] - bbox[:, 1]) + bbox[:, 1]) * self.arg.H  # y
+        pose_gt[:, 0] = ((pose_gt[:, 0] + 0.5) * (bbox[:, 2] - bbox[:, 0]) + bbox[:, 0]) * self.arg.W  # x
+        pose_gt[:, 1] = ((pose_gt[:, 1] + 0.5) * (bbox[:, 3] - bbox[:, 1]) + bbox[:, 1]) * self.arg.H  # y
 
-        temp = (pose_res[:, 0:2, :, :, :] - pose_gt[:, 0:2, :, :, :]) ** 2
-        ade = np.sqrt(temp[:, 0, :, :, :] + temp[:, 1, :, :, :])
+        temp = (pose_res[:, 0:2] - pose_gt[:, 0:2]) ** 2
+        ade = np.sqrt(temp[:, 0] + temp[:, 1])
         ade = np.mean(ade)
 
         return ade
