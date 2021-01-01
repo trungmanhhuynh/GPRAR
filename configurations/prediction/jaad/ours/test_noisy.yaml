@@ -1,14 +1,8 @@
-work_dir: /home/manhh/work_dir/prediction/jaad/ours/noisy
-weights: /home/manhh/work_dir/reconstruction/jaad/epoch50_model.pt
-ignore_weights: [ 'fcn' ]     # ignore last layer of recognition
+work_dir: ./work_dir/prediction/jaad/ours/noisy
+weights: /home/manhh/work_dir/prediction/jaad/ours/noisy/epoch50_model.pt
 
 # feeder
 feeder: feeder.feeder_prediction_jaad.Feeder
-train_feeder_args:
-  obs_len: 10
-  pred_len: 10
-  data_path: ../datasets/processed_data/prediction/jaad/train_data_noisy.pkl
-  label_path: ../datasets/processed_data/prediction/jaad/train_metadata_noisy.pkl
 test_feeder_args:
   obs_len: 10
   pred_len: 10
@@ -31,16 +25,10 @@ model_args:
     layout: 'openpose'
     strategy: 'spatial'
 
-
-# training
-device: [ 0,1,2,3 ]
-batch_size: 256
+# test
+phase: test
+device: [0, 1, 2, 3]
 test_batch_size: 256
-
-# optim
-base_lr: 0.1
-step: [ 20, 30, 40, 50 ]
-num_epoch: 50
 
 
 

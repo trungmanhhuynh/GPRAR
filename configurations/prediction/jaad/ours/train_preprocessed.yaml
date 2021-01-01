@@ -1,5 +1,5 @@
-work_dir: ~/work_dir/prediction/jaad/ours/noisy
-weights: ~/work_dir/reconstruction/jaad/epoch50_model.pt
+work_dir: /home/manhh/work_dir/prediction/jaad/ours/impute
+weights: /home/manhh/work_dir/reconstruction/jaad/epoch50_model.pt
 ignore_weights: ['fcn']     # ignore last layer of recognition
 
 # feeder
@@ -7,23 +7,24 @@ feeder: feeder.feeder_prediction_jaad.Feeder
 train_feeder_args:
   obs_len: 10
   pred_len: 10
-  data_path: ../datasets/processed_data/prediction/jaad/train_data_gt.pkl
-  label_path: ../datasets/processed_data/prediction/jaad/train_metadata_gt.pkl
+  data_path: ../datasets/processed_data/prediction/jaad/train_data_impute.pkl
+  label_path: ../datasets/processed_data/prediction/jaad/train_metadata_impute.pkl
 test_feeder_args:
   obs_len: 10
   pred_len: 10
-  data_path: ../datasets/processed_data/prediction/jaad/val_data_gt.pkl
-  label_path: ../datasets/processed_data/prediction/jaad/val_metadata_gt.pkl
+  data_path: ../datasets/processed_data/prediction/jaad/val_data_impute.pkl
+  label_path: ../datasets/processed_data/prediction/jaad/val_metadata_impute.pkl
 
 # model
-model: net.pst_gcn.Model
+model: net.PNet.PNet
 model_args:
+  num_class: 2
   obs_len: 10
   pred_len: 10
   loc_feats: 2
   pose_feats: 3  
   gridflow_feats: 24
-  action_feats: 256
+  action_feats: 3
   num_keypoints: 18
   edge_importance_weighting: True 
   graph_args:

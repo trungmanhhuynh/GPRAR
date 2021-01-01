@@ -36,7 +36,7 @@ def impute_poses(poses):
     return imputed_poses, valid_sample
 
 
-def generate_samples(video_data, video_name, args):
+def generate_samples(video_data, video_name, mode, args):
     """Function to generate complete pose trajectory for each pedestrian in a video.
         Args:
             video_data (dict): data of each video, has the following format:
@@ -60,6 +60,7 @@ def generate_samples(video_data, video_name, args):
     """
     video_samples, video_names, image_name_out = [], [], []
     action_label_out, action_index_out = [], []
+    video_bbox = []
 
     # find list of pedestrian id
     id_list = []
@@ -83,14 +84,14 @@ def generate_samples(video_data, video_name, args):
 
 
         # split trajectories into chunk of pre-defined trajectory length
-        for poses, image_names, action_labels, action_indexes in zip(
+        for pose, image_names, action_labels, action_indexes in zip(
                 chunks(long_poses, traj_len=args.traj_len, slide=args.slide),
                 chunks(long_image_names, traj_len=args.traj_len, slide=args.slide),
                 chunks(long_action_labels, traj_len=args.traj_len, slide=args.slide),
                 chunks(long_action_indexes, traj_len=args.traj_len, slide=args.slide)):
 
             # skip if trajectory is short
-            if (len(poses) < args.traj_len):
+            if (len(pose) < args.traj_len):
                 continue
 
             # skip of the label is not consistent
@@ -108,27 +109,56 @@ def generate_samples(video_data, video_name, args):
             #     continue
 
             # skip if pose is not complete
-            if 0 in sum(poses, []):
-                continue
+            if mode == "train" or mode == "val":
+                if 0 in sum(pose, []):
+                    continue
+            else:  # test data
+                if 0 not in sum(pose, []):
+                    continue
+
 
             # normalize poses
-            poses = np.array(poses)  # (traj_len, 2)
-            poses[:, 0::3] = poses[:, 0::3] / float(args.width)  # normalize x by frame width
-            poses[:, 1::3] = poses[:, 1::3] / float(args.height)  # normalize y by frame height
-            poses[:, 0::3] = poses[:, 0::3] - 0.5  # centralize
-            poses[:, 1::3] = poses[:, 1::3] - 0.5  # centralize
-            poses[:, 0::3][poses[:, 2::3] == 0] = 0
-            poses[:, 1::3][poses[:, 2::3] == 0] = 0
+            pose = np.array(pose)  # (traj_len, 2)
+            pose[:, 0::3] = pose[:, 0::3] / float(args.width)  # normalize x by frame width
+            pose[:, 1::3] = pose[:, 1::3] / float(args.height)  # normalize y by frame height
+
+
+            # calculate bounding box
+            bbox = np.zeros((args.traj_len, 4))
+            invalid_box = False
+            for t in range(args.traj_len):
+                xmin, xmax, ymin, ymax = 20000, -1, 20000, -1
+                for i in range(0, 18):
+                    if pose[t, 3 * i + 2] != 0:
+                        if pose[t, 3 * i] <= xmin:
+                            xmin = pose[t, 3 * i]
+                        if pose[t, 3 * i] >= xmax:
+                            xmax = pose[t, 3 * i]
+                        if pose[t, 3 * i + 1] <= ymin:
+                            ymin = pose[t, 3 * i + 1]
+                        if pose[t, 3 * i + 1] >= ymax:
+                            ymax = pose[t, 3 * i + 1]
+
+                if (xmax - xmin == 0) or (ymax - ymin == 0):
+                    invalid_box = True
+                bbox[t, :] = [xmin, ymin, xmax, ymax]
+
+            if(invalid_box):
+                continue
+
+            pose[:, 0::3][pose[:, 2::3] == 0] = 0
+            pose[:, 1::3][pose[:, 2::3] == 0] = 0
 
             # add to sample list
-            video_samples.append(poses.tolist())
+            video_samples.append(pose.tolist())
+            video_bbox.append(bbox.tolist())
             video_names.append(video_name)
             image_name_out.append(image_names[0])  # keep first image name for meta-data
             action_label_out.append(action_labels[0])
             action_index_out.append(action_indexes[0])
 
 
-    return video_samples, video_names, image_name_out, action_label_out, action_index_out
+    return video_samples, video_bbox, video_names, image_name_out, action_label_out, action_index_out
 
 
 def generate_data(args, mode):
@@ -151,6 +181,7 @@ def generate_data(args, mode):
 
     all_samples, all_video_names, all_image_names = [], [], []
     all_action_labels, all_action_indexes = [], []
+    all_bbox = []
     for video_name in video_dir:
         print("processing video: ", video_name)
 
@@ -176,11 +207,11 @@ def generate_data(args, mode):
                                                          })
 
         # extract trajectory within a video
-        video_samples, video_names, image_names, \
-        action_labels, action_indexes = generate_samples(video_data, video_name, args)
-
+        video_samples,video_bbox, video_names, image_names, \
+        action_labels, action_indexes = generate_samples(video_data, video_name, mode, args)
 
         all_samples.append(video_samples)
+        all_bbox.append(video_bbox)
         all_video_names.append(video_names)
         all_image_names.append(image_names)
         all_action_labels.append(action_labels)
@@ -189,12 +220,13 @@ def generate_data(args, mode):
 
     # convert data to numpy array of shape (N, C, T, V, 1)
     all_samples = np.array(sum(all_samples, []))  # (N, T, V*C)
+    all_bbox =  np.array(sum(all_bbox, []))  # (N, T, 4)
+    all_bbox = all_bbox.transpose(0, 2, 1)          # (N, 4, T)
     all_video_names = sum(all_video_names, [])
     all_image_names = sum(all_image_names, [])
     all_action_labels = sum(all_action_labels, [])
     all_action_indexes = sum(all_action_indexes, [])
     print(len(all_samples))
-    input("here")
 
     N, T, _ = all_samples.shape
     all_samples = all_samples.reshape(N, T, args.num_keypoints, 3)  # (N, T, V, C)
@@ -213,7 +245,7 @@ def generate_data(args, mode):
 
     metadata_file = os.path.join(args.out_folder, "{}_metadata.pkl".format(mode))
     with open(metadata_file, 'wb') as f:
-        pickle.dump((all_video_names, all_image_names, all_action_labels, all_action_indexes), f)
+        pickle.dump((all_bbox, all_video_names, all_image_names, all_action_labels, all_action_indexes), f)
 
     # print
     print("number of video used: {}".format(len(video_dir)))

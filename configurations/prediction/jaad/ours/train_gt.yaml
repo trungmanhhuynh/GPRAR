@@ -18,12 +18,13 @@ test_feeder_args:
 # model
 model: net.PNet.PNet
 model_args:
+  num_class: 2
   obs_len: 10
   pred_len: 10
   loc_feats: 2
   pose_feats: 3
   gridflow_feats: 24
-  action_feats: 256
+  action_feats: 32
   num_keypoints: 18
   edge_importance_weighting: True
   graph_args:

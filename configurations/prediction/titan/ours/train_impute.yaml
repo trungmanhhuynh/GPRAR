@@ -24,7 +24,7 @@ model_args:
   loc_feats: 2
   pose_feats: 3
   gridflow_feats: 24
-  action_feats: 32
+  action_feats: 3
   num_keypoints: 18
   edge_importance_weighting: True
   graph_args:

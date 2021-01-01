@@ -9,8 +9,8 @@ def gen_reconstructed_pose_on_image(pose_in, pose_rec, pose_gt, edge, bbox,
     Args:
 
     Shapes:
-        bbox (T , 4)
-
+        pose (3, T, V)
+        bbox (4, T, V)
     Returns:
 
     """
@@ -18,8 +18,9 @@ def gen_reconstructed_pose_on_image(pose_in, pose_rec, pose_gt, edge, bbox,
     C, T, V = pose_in.shape  # C, T, V
     padding_bbox = 3
 
-    image_list = os.listdir(image_path)
-    st_index = image_list.index(st_mage_name)
+    if image_path is not None:
+        image_list = os.listdir(image_path)
+        st_index = image_list.index(st_mage_name)
 
     for t in range(T):
 

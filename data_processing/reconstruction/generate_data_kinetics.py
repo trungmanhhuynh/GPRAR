@@ -18,39 +18,40 @@ def print_toolbar(rate, annotation='', toolbar_width=30):
         sys.stdout.flush()
     sys.stdout.write(']\r')
 
-
 def end_toolbar():
     sys.stdout.write("\n")
 
 
 def generate_data(args, mode):
-    """
+    """ function to generate train/val data for reconstruction using kinetics dataset
         mode: train of val
         output:
-            - fp: numpy array of shape (N, C, T, V, 1) --> written to *.npy file
-            - label: list of N samples --> writting to *.json file 
+            - fp: numpy array of shape (N, C, T, V, 1) --> written to *.npy file. Pose data
+                  is normalized using standard normalization with mean 0 and variance 0.5.
+            - tuple: (sample_name, all_label, all_bbox) --> writting to {}_label.pkl file
+                sample_name (list of string): list of video names
+                all_label (list of string): list of action labels.
+                all_bbox (numpy array): bounding box data. Shape: (N, T, 4)
     """
 
-    # read data and label
-    data_path = os.path.join(args.data_path, "kinetics_{}".format(mode))
+    # read data and label. The data is already normalized to range (0,1) by divided
+    # pose coordinates to image width and height.
     label_path = os.path.join(args.data_path, "kinetics_{}_label.json".format(mode))
-
-    sample_name = os.listdir(data_path)
     with open(label_path) as f:
         label_info = json.load(f)
+    data_path = os.path.join(args.data_path, "kinetics_{}".format(mode))
+    sample_name = os.listdir(data_path)
 
     if (args.debug):
-        sample_name = sample_name[:20000]
+        sample_name = sample_name[:1000]
 
+    # ignore the samples which does not has skeleton sequence
+    print("Total number of video: ", len(sample_name))
     sample_id = [name.split('.')[0] for name in sample_name]
     label = np.array(
         [label_info[id]['label_index'] for id in sample_id])
     has_skeleton = np.array(
         [label_info[id]['has_skeleton'] for id in sample_id])
-
-    print("Total number of video: ", len(sample_name))
-
-    # ignore the samples which does not has skeleton sequence
     sample_name = [
         s for h, s in zip(has_skeleton, sample_name) if h
     ]
@@ -60,6 +61,8 @@ def generate_data(args, mode):
     # generate data_sample from each video
     all_data, all_label, all_bbox = [], [], []
     for i, video_name in enumerate(sample_name):
+
+        # read video data
         video_path = os.path.join(data_path, video_name)
         with open(video_path, 'r') as f:
             video_info = json.load(f)
@@ -68,13 +71,14 @@ def generate_data(args, mode):
         video_label = video_info['label_index']
         assert (label[i] == video_label)
 
+        # print toolbar
         num_frames = len(video_info['data'])
-        # print("{}/{} processing {} num_frames={}".format(i, len(sample_name), video_name, num_frames))
-
         print_toolbar(i * 1.0 / len(sample_name),
                       '({:>5}/{:<5}) Processing data: '.format(
                           i + 1, len(sample_name)))
 
+        # We process a chunk of T frames at once. We assume pose has 18 joints and 3 features
+        # (x,y,z).
         for start_frame in range(0, num_frames - args.T, args.slide):
 
             data_numpy = np.zeros((3, args.T, 18, args.max_num_person))
@@ -89,10 +93,7 @@ def generate_data(args, mode):
                     score = np.asarray(skeleton_info['score'])
 
                     # calculate bounding box
-                    xmin = 20000
-                    ymin = 20000
-                    xmax = -1
-                    ymax = -1
+                    xmin, xmax, ymin, ymax = 20000, -1, 20000, -1
                     for i in range(0, 18):
                         if score[i] != 0:
                             if pose[2 * i] <= xmin: xmin = pose[2 * i]
@@ -103,11 +104,7 @@ def generate_data(args, mode):
                     if (xmax - xmin == 0) or (ymax - ymin == 0):
                         continue
 
-                    # scale pose to pre-defined bbox
-                    pose[0::2] = (pose[0::2] - xmin) / (xmax - xmin) - 0.5
-                    pose[1::2] = (pose[1::2] - ymin) / (ymax - ymin) - 0.5
-
-                    # normalize
+                    # gather pose data
                     data_numpy[0, frame_index, :, m] = pose[0::2]
                     data_numpy[1, frame_index, :, m] = pose[1::2]
                     data_numpy[2, frame_index, :, m] = score
@@ -126,12 +123,13 @@ def generate_data(args, mode):
                     all_label.append(video_label)
                     all_bbox.append(np.expand_dims(bbox_numpy[:, :, m], axis=2))
 
-    all_data = np.concatenate(all_data, axis=3)
-    all_bbox = np.concatenate(all_bbox, axis=2)  # (4, T, N)
+    all_data = np.concatenate(all_data, axis=3)   # (C, T, V, N)
     C, T, V, N = all_data.shape
     all_data = np.expand_dims(all_data.transpose(3, 0, 1, 2), axis=4)  # change to shape (N, C, T, V, 1)
-    all_bbox = all_bbox.transpose(2, 1, 0)  # (N, T, 4)
+    all_bbox = np.concatenate(all_bbox, axis=2)     # (4, T, N)
+    all_bbox = all_bbox.transpose(2, 0, 1)          # (N, 4, T)
 
+    print(all_bbox.shape)
     # write to file
     data_out_path = os.path.join(args.out_folder, "{}_data.npy".format(mode))
     fp = open_memmap(
@@ -140,7 +138,6 @@ def generate_data(args, mode):
         mode='w+',
         shape=all_data.shape)
     fp[...] = all_data
-
     label_out_path = os.path.join(args.out_folder, "{}_label.pkl".format(mode))
     with open(label_out_path, 'wb') as f:
         pickle.dump((sample_name, all_label, all_bbox), f)

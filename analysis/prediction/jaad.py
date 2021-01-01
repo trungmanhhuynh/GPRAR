@@ -6,17 +6,16 @@ import yaml
 import cv2
 import numpy as np
 from torchlight import str2bool
-from analysis.utils.visualization import gen_reconstructed_pose_on_image
+from analysis.utils.viz_prediction import gen_traj_on_image
 from net.utils.graph import Graph
 from tqdm import tqdm
 
 
-class JAADReconstructionAnalysis():
+class JAADPredictionAnalysis():
     def __init__(self, argv=None):
         self.load_arg(argv)
 
     def start(self):
-        print("start analysis ...")
         if self.args.gen_image_res:
             self.generate_image_result()
 
@@ -40,28 +39,26 @@ class JAADReconstructionAnalysis():
         n_sample = len(result)
         print("Number of samples:", n_sample)
 
+        input("here")
+
         pbar = tqdm(total=len(range(0, n_sample, 10)))
         for i in range(0, n_sample, 10):
 
             pbar.update(1)
             # generate images
-            in_pose = result[i]['in_pose'].squeeze(3)  # (C, T, V)
-            out_pose = result[i]['out_pose'].squeeze(3)  # (C, T, V)
-            gt_pose = result[i]['gt_pose'].squeeze(3)  # (C, T, V)
-
-            occ_ratio = self.calculate_occlusion_ratio(in_pose)
-
-            # if occ_ratio < 0.3:
-            #     continue
-
-            bbox = result[i]['bbox'].squeeze(3)  # (4, T, V)
-            bbox = bbox[:, :, 0].transpose(1, 0)  # (T, 4)
+            obs_loc = result[i]['obs_loc']  # (C, T, V)
+            obs_pose = result[i]['obs_pose']  # (C, T, V)
+            rec_pose = result[i]['rec_pose']  # (C, T, V)
+            pred_loc = result[i]['pred_loc'] # (C, T, V)
+            gt_loc = result[i]['gt_loc'] # (C, T, V)
+            bbox = result[i]['bbox']  # (4, T, 18)
             video_name = result[i]['video_name']
             st_image_name = result[i]['image_name']
             image_path = os.path.join(self.args.image_dir, video_name)
 
-            images = gen_reconstructed_pose_on_image(in_pose, out_pose, gt_pose, G.edge, bbox,
+            images = gen_traj_on_image(rec_pose, rec_pose, rec_pose, G.edge, bbox,
                                                      image_path=image_path, st_mage_name=st_image_name)
+
             # plot
             sample_dir = os.path.join(self.args.res_image_dir, str(i))
             if not os.path.exists(sample_dir):
@@ -114,16 +111,16 @@ class JAADReconstructionAnalysis():
 
     def get_parser(add_help=False):
 
-        parser = argparse.ArgumentParser(add_help=add_help, description='Pose Reconstruction Analysis')
+        parser = argparse.ArgumentParser(add_help=add_help, description='Trajectory Prediction Analysis')
         parser.add_argument('-c', '--config', default=None,
                             help='path to the configuration file')
         parser.add_argument('--image_dir', type=str, default='/home/manhh/github/datasets/JAAD/images',
                             help='original images dir')
-        parser.add_argument('--res_image_dir', type=str, default='./results/reconstruction/jaad/image/val',
+        parser.add_argument('--res_image_dir', type=str, default='./results/prediction/jaad/ours/image/val',
                             help='result images dir')
         parser.add_argument('--gen_image_res', type=str2bool, default=True,
                             help='generate image results')
-        parser.add_argument('--res_file', type=str, default='./work_dir/reconstruction/jaad/test_result.pkl',
+        parser.add_argument('--res_file', type=str, default='./work_dir/prediction/jaad/ours/noisy/test_result.pkl',
                             help='result file path')
         parser.add_argument('--debug', type=str2bool, default=False,
                             help='debug with 10 samples')
@@ -132,5 +129,5 @@ class JAADReconstructionAnalysis():
 
 
 if __name__ == '__main__':
-    r = JAADReconstructionAnalysis(sys.argv[1:])
+    r = JAADPredictionAnalysis(sys.argv[1:])
     r.start()

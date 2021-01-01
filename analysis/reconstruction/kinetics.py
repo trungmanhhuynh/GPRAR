@@ -9,6 +9,7 @@ from torchlight import str2bool
 from analysis.utils.visualization import gen_reconstructed_pose_on_image
 from net.utils.graph import Graph
 
+
 class KineticReconstructionAnalysis():
     def __init__(self, argv=None):
         self.load_arg(argv)
@@ -43,16 +44,13 @@ class KineticReconstructionAnalysis():
 
             # generate images
             in_pose = result[i]['in_pose'].squeeze(3)  # (C, T, V)
-            out_pose = result[i]['out_pose'].squeeze(3) # (C, T, V)
-            gt_pose = result[i]['gt_pose'].squeeze(3) # (C, T, V)
-            bbox = result[i]['bbox']  # (T, 4)
-            video_name = result[i]['video_name'][0]
-            st_image_name = result[i]['image_name'][0]
-            image_path = os.path.join(self.args.image_dir, video_name)
-
+            out_pose = result[i]['out_pose'].squeeze(3)  # (C, T, V)
+            gt_pose = result[i]['gt_pose'].squeeze(3)  # (C, T, V)
+            bbox = result[i]['bbox'].squeeze(3)  # (4, T, V)
+            bbox = bbox[:, :, 0].transpose(1, 0)  # (T, 4)
 
             images = gen_reconstructed_pose_on_image(in_pose, out_pose, gt_pose, G.edge, bbox,
-                                                     image_path=image_path, st_mage_name=st_image_name)
+                                                     image_path=None, st_mage_name=None)
             # plot
             sample_dir = os.path.join(self.args.res_image_dir, str(i))
             if not os.path.exists(sample_dir):
@@ -63,6 +61,7 @@ class KineticReconstructionAnalysis():
                 cv2.imwrite(os.path.join(sample_dir, '{}.jpg'.format(i)), image)
 
             # input("here")
+
     def load_arg(self, argv=None):
 
         parser = self.get_parser()
@@ -107,6 +106,5 @@ class KineticReconstructionAnalysis():
 
 
 if __name__ == '__main__':
-
     r = KineticReconstructionAnalysis(sys.argv[1:])
     r.start()

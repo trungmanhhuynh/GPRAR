@@ -16,7 +16,7 @@ class Prediction(BaseSetting):
         self.loss = nn.MSELoss()
 
         # log results
-        self.loss_res = {'loss':[], 'ade': [], 'fde': []}
+        self.loss_res = {'loss': [], 'ade': [], 'fde': []}
         self.best_ade = 1000
         self.best_fde = 1000
 
@@ -42,6 +42,7 @@ class Prediction(BaseSetting):
                 if ((epoch + 1) % self.arg.eval_interval == 0) or (
                         epoch + 1 == self.arg.num_epoch):
                     self.io.print_log('Eval epoch: {}'.format(epoch))
+                    self.pred_result = []
                     self.test()
 
             self.io.print_log('Save log file')
@@ -61,13 +62,12 @@ class Prediction(BaseSetting):
 
             # evaluation
             self.io.print_log('Evaluation Start:')
+            self.pred_result = []
             self.test()
+
             # save the output of model
             if self.arg.save_result:
-                result_dict = dict(
-                    zip(self.data_loader['test'].dataset.sample_name,
-                        self.result))
-                self.io.save_pkl(result_dict, 'test_result.pkl')
+                self.io.save_pkl(self.pred_result, 'test_result.pkl')
 
     def train(self):
         self.model.train()
@@ -75,15 +75,16 @@ class Prediction(BaseSetting):
         loader = self.data_loader['train']
         loss_value = []
 
-        for obs_loc, obs_pose, obs_gridflow, gt_location in loader:
+        for obs_pose, obs_gridflow, gt_location, bbox, video_name, image_name in loader:
             # get data
-            obs_loc = obs_loc.float().to(self.dev)
+
             obs_pose = obs_pose.float().to(self.dev)
             obs_gridflow = obs_gridflow.float().to(self.dev)
             gt_location = gt_location.float().to(self.dev)
+            bbox = bbox.float().to(self.dev)
 
             # forward
-            pred_loc = self.model((obs_loc, obs_pose, obs_gridflow))
+            pred_loc, _ = self.model((obs_pose, obs_gridflow, bbox))
             loss = self.loss(pred_loc, gt_location)
 
             # backward
@@ -109,18 +110,27 @@ class Prediction(BaseSetting):
         loss_value, ade_value, fde_value = [], [], []
         result_frag = []
 
-        for obs_loc, obs_pose, obs_gridflow, gt_location in loader:
+        for obs_pose, obs_gridflow, gt_location, bbox, video_name, image_name in loader:
 
             # get data
-            obs_loc = obs_loc.float().to(self.dev)
             obs_pose = obs_pose.float().to(self.dev)
             obs_gridflow = obs_gridflow.float().to(self.dev)
             gt_location = gt_location.float().to(self.dev)
+            bbox = bbox.float().to(self.dev)
 
             # inference
             with torch.no_grad():
-                pred_loc = self.model((obs_loc, obs_pose, obs_gridflow))
+                pred_loc, rec_pose = self.model((obs_pose, obs_gridflow, bbox))
             result_frag.append(pred_loc.data.cpu().numpy())
+
+            bbox = bbox[:, :, :, 0].permute(0, 2, 1)  # (N, T, 4)
+            for i in range(obs_pose.shape[0]):
+                pred_result_frag = {'obs_pose': obs_pose[i].cpu().numpy(),
+                                    'rec_pose':rec_pose[i].cpu().numpy(),
+                                    'pred_loc': pred_loc[i].cpu().numpy(), 'gt_loc': gt_location[i].cpu().numpy(),
+                                    'bbox': bbox[i].cpu().numpy(), 'video_name': video_name[i],
+                                    'image_name': image_name[i]}
+                self.pred_result.append(pred_result_frag)
 
             # get loss
             if evaluation:
@@ -202,8 +212,8 @@ class Prediction(BaseSetting):
 
         parent_parser = BaseSetting.get_parser(add_help=False)
         parser = argparse.ArgumentParser(add_help=add_help,
-                                        parents=[parent_parser],
-                                        description='Parser for Prediction')
+                                         parents=[parent_parser],
+                                         description='Parser for Prediction')
 
         parser.add_argument('--obs_len', type=int, default=10, help='observe length')
         parser.add_argument('--pred_len', type=int, default=10, help='prediction length')

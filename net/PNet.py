@@ -61,7 +61,8 @@ class PNet(nn.Module):
         self.reg_networks = nn.ModuleList((
             rst_gcn(256, 128, kernel_size, 1, residual=False, **kwargs0),
             rst_gcn(128, 64, kernel_size, 1, **kwargs),
-            rst_gcn(64, 32, kernel_size, 1, **kwargs)
+            rst_gcn(64, 32, kernel_size, 1, **kwargs),
+            rst_gcn(32, 3, kernel_size, 1, **kwargs)
         ))
         self.fcn = nn.Conv2d(32, num_class, kernel_size=1)
 
@@ -98,18 +99,36 @@ class PNet(nn.Module):
                                    pose_feats=pose_feats, gridflow_feats=gridflow_feats,
                                    action_feats=action_feats, num_keypoints=num_keypoints)
 
+        #
+        for p in self.reg_networks.parameters():
+            p.requires_grad = False
+        for p in self.rec_networks.parameters():
+            p.requires_grad = False
+        for p in self.enc_networks.parameters():
+            p.requires_grad = False
+        for p in self.data_bn.parameters():
+            p.requires_grad = False
+        for p in self.fcn.parameters():
+            p.requires_grad = False
+        for p in self.enc_edge_imp.parameters():
+            p.requires_grad = False
+        for p in self.reg_edge_imp.parameters():
+            p.requires_grad = False
+        for p in self.rec_edge_imp.parameters():
+            p.requires_grad = False
+
     def forward(self, inputs):
         """
             Args:
-                inputs (tuple): input data consisting of features: 
+                inputs (tuple): input data consisting of features:
                 obs_loc (tensor): observed location.
-                obs_pose (tensor): observed pose. 
+                obs_pose (tensor): observed pose.
                 obs_gridflow (tensor): observed grid flow. Shape: (N, T, G)
             Shapes:
                 obs_loc: (N, To, L)
-                obs_pose:  (N, P, T, V, M)
+                obs_pose:  (N, P, T, V)
                 obs_gridflow: (N, T, G)
-                Where: 
+                Where:
                 N: batch size, To: observed time, Tp: predicted time, V: number of human keypoints
                 M: number of pedestrian each batch, P: number of pose features, L: number of location features
                 G: number of gridflow features
@@ -118,57 +137,58 @@ class PNet(nn.Module):
         """
 
         # extract features
-        obs_loc, obs_pose, obs_gridflow = inputs
-        N, P, To, V, M = obs_pose.size()
-        _, _, L = obs_loc.size()
+        obs_pose, obs_gridflow, bbox = inputs
+        N, C, T, V = obs_pose.size()
         _, _, G = obs_gridflow.size()
-        assert self.loc_feats == L
         assert self.gridflow_feats == G
-        assert self.pose_feats == P
-        R = self.action_feats
+        assert self.pose_feats == C
+        A = self.action_feats
 
         # data normalization
         x = obs_pose
-        N, C, T, V, M = x.size()
-        x = x.permute(0, 4, 3, 1, 2).contiguous()  # N, M, V, C, T
-        x = x.view(N * M, V * C, T)
+        x = x.permute(0, 3, 1, 2).contiguous()  # N, V, C, T
+        x = x.view(N, V * C, T)
         x = self.data_bn(x)
-        x = x.view(N, M, V, C, T)
-        x = x.permute(0, 1, 3, 4, 2).contiguous()
-        x = x.view(N * M, C, T, V)  # ~ (N * M, C, T, V) (64, 3, 10, 18)
+        x = x.view(N, V, C, T)
+        x = x.permute(0, 2, 3, 1).contiguous()  # (N, C, T, V)
 
         # encode
         for gcn, importance in zip(self.enc_networks, self.enc_edge_imp):
-            x, _ = gcn(x, self.enc_A * importance)  # x ~ (N * M, C', T, V)
+            x, _ = gcn(x, self.enc_A * importance)  # x ~ (N , C', T, V)
 
         # action recognition
         x1 = x
         for gcn, importance in zip(self.reg_networks, self.reg_edge_imp):
-            x1, _ = gcn(x1, self.reg_A * importance)  # x ~ (N * M, C', T, V)
+            x1, _ = gcn(x1, self.reg_A * importance)  # x ~ (N, A, T, V)
 
         # pose reconstruction
         x2 = x
         for gcn, importance in zip(self.rec_networks, self.rec_edge_imp):
-            x2, _ = gcn(x2, self.rec_A * importance)  # (N * M, C', T, V)
+            x2, _ = gcn(x2, self.rec_A * importance)  # (N, C, T, V)
+
+        rec_pose = x2.detach().clone()
+        act_feature = x1.detach().clone()
 
         # reshape for prediction
+        rec_pose[:, 0] = ((rec_pose[:, 0] + 0.5) * (bbox[:, 2] - bbox[:, 0]) + bbox[:, 0])
+        rec_pose[:, 1] = ((rec_pose[:, 1] + 0.5) * (bbox[:, 3] - bbox[:, 1]) + bbox[:, 1])
+        obs_loc = rec_pose[:, :2, :, 8] + rec_pose[:, :2, :, 11]    # (N, L, T)
+        obs_loc = obs_loc.unsqueeze(3)                  # (N, L, T, 1)
 
-        # obs_loc = x2[:, :2, :, 8] + x2[:, :2, :, 11]  # (N * M, L, To)
-        # obs_loc = obs_loc.unsqueeze(3) # (N, L, To, 1) given M=1
-        obs_loc = obs_loc.permute(0, 2, 1).unsqueeze(3)  # (N, L, To, 1)
+        rec_pose = rec_pose.permute(0, 3, 1, 2).contiguous()     # (N, V, C, T)
+        rec_pose = rec_pose.view(N, V * C, T)
+        rec_pose = rec_pose.unsqueeze(3)                         # (N, V * C, T, 1)
+
         obs_gridflow = obs_gridflow.permute(0, 2, 1).unsqueeze(3)  # (N, G, To, 1)
 
-        x2 = x2.view(N, M, P, To, V)  # (N , M, P, To, V)
-        x2 = x2.permute(0, 4, 2, 3, 1).contiguous()  # (N, V * P, To, 1)
-        x2 = x2.reshape(N, V * P, To, 1)
-        x1 = x1.view(N, M, R, To, V)
-        x1 = x1.permute(0, 4, 2, 3, 1).contiguous()  # (N, V * R, To, 1)
-        x1 = x1.reshape(N, V * R, To, 1)
+        act_feature = act_feature.permute(0, 3, 1, 2).contiguous()  # (N, V, A, T)
+        act_feature = act_feature.view(N, V * A, T)
+        act_feature = act_feature.unsqueeze(3)                      # (N, V * A, T, 1)
 
         # predict
-        pred_loc = self.predictor(obs_loc, x2, obs_gridflow, x1)  # (N, Tp, L)
+        pred_loc = self.predictor(obs_loc, rec_pose, obs_gridflow, act_feature)  # (N, Tp, L)
 
-        return pred_loc
+        return pred_loc, rec_pose
 
     def extract_feature(self, x):
 
@@ -253,8 +273,7 @@ class Predictor(nn.Module):
 
         #  action network
         self.encoder_action = nn.Sequential(
-            conv2d(in_channels=self.action_feats * self.num_keypoints, out_channels=32, kernel_size=3, stride=1,
-                   padding=0),
+            conv2d(in_channels=self.action_feats * self.num_keypoints, out_channels=32, kernel_size=3, stride=1,padding=0),
             conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=0),
             conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=0),
             conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=0)
@@ -276,7 +295,7 @@ class Predictor(nn.Module):
     def forward(self, obs_loc, obs_pose, obs_gridflow, obs_act):
         """
             Args:
-                obs_loc (tensor): observed location feature
+                obs_loc (tensor): observed location feature/,.
                 obs_pose (tensor): observed pose feature
                 obs_gridflow (tensor): observed grid optical flow feature
             Shape:
@@ -286,7 +305,6 @@ class Predictor(nn.Module):
                obs_act: (N, A, To, 1)      # A = V * P
             Return:
                 + pred_loc (N, Tp, L)
-
         """
         # encode feature
         inter_loc = self.encoder_location(obs_loc)
@@ -296,6 +314,7 @@ class Predictor(nn.Module):
 
         # concatenate encoded features
         f = torch.cat((inter_loc, inter_pose, inter_gridflow, inter_act), dim=1)
+        # f = torch.cat((inter_loc, inter_pose), dim=1)
         f = self.intermediate(f)
 
         # decode

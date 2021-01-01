@@ -115,18 +115,16 @@ def random_shift(data_numpy):
 
     return data_shift
 
-
 def random_noise(data_numpy):
     # input: C,T,V,M
     C, T, V, M = data_numpy.shape
 
     for i in range(M):
 
-        num_missing_nodes = random.randint(0, V // 2)
-        num_missing_frames = random.randint(0, T // 2)
+        num_missing_nodes = random.randint(0, V//2)
+        num_missing_frames = random.randint(0, T//2)
         missing_nodes = np.asarray(random.choices(range(0, V), k=num_missing_nodes), dtype=np.int)
         missing_frames = np.asarray(random.choices(range(0, T), k=num_missing_frames), dtype=np.int)
-
         for t in missing_frames:
             data_numpy[:, t, missing_nodes, i] = 0
 
@@ -145,7 +143,7 @@ def openpose_match(data_numpy):
     # data of frame 2
     xy2 = data_numpy[0:2, 1:T, :, :].reshape(2, T - 1, V, 1, M)
     # square of distance between frame 1&2 (shape: T-1, M, M)
-    distance = ((xy2 - xy1)**2).sum(axis=2).sum(axis=0)
+    distance = ((xy2 - xy1) ** 2).sum(axis=2).sum(axis=0)
 
     # match pose
     forward_map = np.zeros((T, M), dtype=int) - 1
@@ -166,7 +164,7 @@ def openpose_match(data_numpy):
     new_data_numpy = np.zeros(data_numpy.shape)
     for t in range(T):
         new_data_numpy[:, t, :, :] = data_numpy[:, t, :, forward_map[
-            t]].transpose(1, 2, 0)
+                                                             t]].transpose(1, 2, 0)
     data_numpy = new_data_numpy
 
     # score sort

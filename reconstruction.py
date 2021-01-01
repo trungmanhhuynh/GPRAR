@@ -84,7 +84,7 @@ class Reconstruction(BaseSetting):
             output_reg, output_rec = self.model(noisy_data)
             lossReg = self.lossReg(output_reg, label)
             lossRec = self.lossRec(output_rec, data)
-            loss = lossReg + lossRec
+            loss = lossRec + lossReg
 
             # backward
             self.optimizer.zero_grad()
@@ -204,7 +204,7 @@ class Reconstruction(BaseSetting):
             Args:
 
             Shape:
-                bbox: (N, T , 4)
+                bbox: # (N, 4, T, V, 1)
                 pose_res:  (N, C, T, V , M)
                 pose_gt:  (N, C, T, V , M)
 
@@ -212,9 +212,9 @@ class Reconstruction(BaseSetting):
         """
         # input shape ~ (N, C, T, V , M)
         N, C, T, V, M = pose_res.shape
-        bbox = np.transpose(bbox, (0, 2, 1))  # (N, 4, T)
-        bbox =np.expand_dims(bbox, axis=[3, 4])
-        bbox = np.repeat(bbox, V, axis=3)   # (N, 4, T, V, M)
+
+        # we have to de-normalize pose data two times. First, use bounding box's width and height
+        # and second use frame's width and height.
 
         pose_res[:, 0] = ((pose_res[:, 0] + 0.5) * (bbox[:, 2] - bbox[:, 0]) + bbox[:, 0]) * self.arg.W  # x
         pose_res[:, 1] = ((pose_res[:, 1] + 0.5) * (bbox[:, 3] - bbox[:, 1]) + bbox[:, 1]) * self.arg.H  # y

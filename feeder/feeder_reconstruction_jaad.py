@@ -60,24 +60,39 @@ class Feeder(torch.utils.data.Dataset):
 
         # load label
         with open(self.label_path, 'rb') as f:
-            self.bbox, self.video_names, self.image_names, self.action_labels, self.action_indexes = pickle.load(f)
+            bbox, video_names, image_names, action_labels, action_indexes = pickle.load(f)
 
         # load data
-        if mmap:
-            self.data = np.load(self.data_path, mmap_mode='r')
-        else:
-            self.data = np.load(self.data_path)
+        data = np.load(self.data_path)
 
         if self.debug:
-            self.data = self.data[0:10000]
-            self.video_names = self.video_names[0:10000]
-            self.image_names = self.image_names[0:10000]
-            self.action_labels = self.action_labels[0:10000]
-            self.action_indexes = self.action_indexes[0:10000]
+            data = data[0:10000]
+            video_names = video_names[0:10000]
+            image_names = image_names[0:10000]
+            action_labels = action_labels[0:10000]
+            action_indexes = action_indexes[0:10000]
 
-        self.N, self.C, self.T, self.V, self.M = self.data.shape
+        # scale pose using bounding box. We do this because
+        # the input pose data (for reconstruction task) is highly dependent on the scale (small vs large)
+        # Thus we apply normalization to make all the pose has the same scale.
+        N, C, T ,V, M = data.shape
+        bbox = np.expand_dims(bbox, axis=[3, 4])  # (N, 4, T, 1, 1)
+        bbox = np.repeat(bbox, V, axis=3)  # (N, 4, T, V, 1)
+        print(bbox.shape)
+        data[:, 0] = (data[:, 0] - bbox[:, 0]) / (bbox[:, 2] - bbox[:, 0]) - 0.5
+        data[:, 1] = (data[:, 1] - bbox[:, 1]) / (bbox[:, 3] - bbox[:, 1]) - 0.5
 
-        print("N={} C={} T={} V={} M={}".format(self.N, self.C, self.T, self.V, self.M))
+        data[:, 0][data[:, 2] == 0] = 0
+        data[:, 1][data[:, 2] == 0] = 0
+
+        self.data = data
+        self.bbox = bbox
+        self.video_names = video_names
+        self.image_names = image_names
+        self.action_labels = action_labels
+        self.action_indexes = action_indexes
+
+        print("pose shape:", self.data.shape)
 
     def __len__(self):
         return len(self.action_indexes)

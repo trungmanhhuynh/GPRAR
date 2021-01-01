@@ -141,16 +141,13 @@ def generate_samples(video_data, video_name, mode, args):
                         if pose[t, 3 * i + 1] >= ymax:
                             ymax = pose[t, 3 * i + 1]
 
-
                 if (xmax - xmin == 0) or (ymax - ymin == 0):
                     continue
                 bbox[t, :] = [xmin, ymin, xmax, ymax]
 
-                pose[t, 0::3] = (pose[t, 0::3] - xmin) / (xmax - xmin) - 0.5
-                pose[t, 1::3] = (pose[t, 1::3] - ymin) / (ymax - ymin) - 0.5
-
-                pose[t, 0::3][pose[t, 2::3] == 0] = 0
-                pose[t, 1::3][pose[t, 2::3] == 0] = 0
+            # normalize pose
+            pose[:, 0::3][pose[:, 2::3] == 0] = 0
+            pose[:, 1::3][pose[:, 2::3] == 0] = 0
 
             # add to sample list
             video_samples.append(pose.tolist())
@@ -225,6 +222,7 @@ def generate_data(args, mode):
     # convert data to numpy array of shape (N, C, T, V, 1)
     all_samples = np.array(sum(all_samples, []))  # (N, T, V*C)
     all_bbox =  np.array(sum(all_bbox, []))  # (N, T, 4)
+    all_bbox = all_bbox.transpose(0, 2, 1)          # (N, 4, T)
     all_video_names = sum(all_video_names, [])
     all_image_names = sum(all_image_names, [])
     all_action_labels = sum(all_action_labels, [])

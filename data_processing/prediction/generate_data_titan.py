@@ -57,7 +57,7 @@ def generate_samples(video_data, video_name, args, mode):
     pose_seqs, video_names, image_name_out = [], [], []
     action_label_out, action_index_out = [], []
     location_seqs, gridflow_seqs = [], []
-
+    bbox_seqs = []
     # find list of pedestrian id
     id_list = []
     for image_name in video_data:
@@ -83,7 +83,7 @@ def generate_samples(video_data, video_name, args, mode):
                     long_gridflow.append(person['gridflow'])
 
         # split trajectories into chunk of pre-defined trajectory length
-        for locations, poses, gridflow, image_names, action_labels, action_indexes in zip(
+        for locations, pose, gridflow, image_names, action_labels, action_indexes in zip(
                 chunks(long_locations, traj_len=args.traj_len, slide=args.slide),
                 chunks(long_poses, traj_len=args.traj_len, slide=args.slide),
                 chunks(long_gridflow, traj_len=args.traj_len, slide=args.slide),
@@ -92,7 +92,7 @@ def generate_samples(video_data, video_name, args, mode):
                 chunks(long_action_indexes, traj_len=args.traj_len, slide=args.slide)):
 
             # skip if trajectory is short
-            if len(poses) < args.traj_len:
+            if len(pose) < args.traj_len:
                 continue
 
             # skip of the label is not the same for all poses in video
@@ -110,56 +110,63 @@ def generate_samples(video_data, video_name, args, mode):
             #     continue
 
             # get pose data
-            poses = np.array(poses)  # (traj_len, 2)
 
-            # normalize poses
-            poses[:, 0::3] = poses[:, 0::3] / float(args.width) # normalize x by frame width
-            poses[:, 1::3] = poses[:, 1::3] / float(args.height) # normalize y by frame height
-            poses[:, 0::3] = poses[:, 0::3] - 0.5  # centralize
-            poses[:, 1::3] = poses[:, 1::3] - 0.5  # centralize
-            poses[:, 0::3][poses[:, 2::3] == 0] = 0
-            poses[:, 1::3][poses[:, 2::3] == 0] = 0
+            # get pose data
+            pose = np.array(pose)  # (traj_len, 54)
+            pose[:, 0::3] = pose[:, 0::3] / float(args.width)  # normalize x by frame width
+            pose[:, 1::3] = pose[:, 1::3] / float(args.height)  # normalize y by frame height
+            pose[:, 0::3][pose[:, 2::3] == 0] = 0
+            pose[:, 1::3][pose[:, 2::3] == 0] = 0
 
-            if args.obs_type == 'impute' :
-                poses, valid = impute_poses(args, poses)
+            if mode == 'train' or mode == 'val':
+                if args.obs_type == 'impute' or args.obs_type == 'gt':
+                    pose, valid = impute_poses(args, pose)
 
-            if args.obs_type == 'gt':
-                # poses, valid = impute_poses(args, poses)
-                if 0 in poses:
-                    # cnt +=1
+            if mode == 'test' and args.obs_type == 'gt':
+                if 0 in pose:
                     continue
 
-            # get location data
-            if args.obs_type == 'gt':
-                locations = np.array(locations)  # (traj_len, 2)
-                locations[:, 0] = locations[:, 0] / float(args.width)
-                locations[:, 1] = locations[:, 1] / float(args.height)
-                locations[:, 0] = locations[:, 0] - 0.5
-                locations[:, 1] = locations[:, 1] - 0.5
-            else:
-                locations = np.zeros((args.traj_len, 2))
-                left_hip = poses[:, 24:26]
-                right_hip = poses[:, 33:35]
-                locations = 0.5 * (left_hip + right_hip)
-                input("hjere")
-                # if 0 not in left_hip and 0 not in right_hip:
-                #     locations = 0.5 * (left_hip + right_hip)
-                # elif 0 in left_hip:
-                #     locations = right_hip
-                # else:
-                #     locations = left_hip
+                # get gt location data
+            locations = np.array(locations)  # (traj_len, 2)
+            locations[:, 0] = locations[:, 0] / float(args.width)
+            locations[:, 1] = locations[:, 1] / float(args.height)
+            locations[:, 0] = locations[:, 0] - 0.5
+            locations[:, 1] = locations[:, 1] - 0.5
+
+            # calculate bounding box
+            bbox = np.zeros((args.traj_len, 4))
+            invalid_box = False
+            for t in range(args.traj_len):
+                xmin, xmax, ymin, ymax = 20000, -1, 20000, -1
+                for i in range(0, 18):
+                    if pose[t, 3 * i + 2] != 0:
+                        if pose[t, 3 * i] <= xmin:
+                            xmin = pose[t, 3 * i]
+                        if pose[t, 3 * i] >= xmax:
+                            xmax = pose[t, 3 * i]
+                        if pose[t, 3 * i + 1] <= ymin:
+                            ymin = pose[t, 3 * i + 1]
+                        if pose[t, 3 * i + 1] >= ymax:
+                            ymax = pose[t, 3 * i + 1]
+                if (xmax - xmin == 0) or (ymax - ymin == 0):
+                    invalid_box = True
+                bbox[t, :] = [xmin, ymin, xmax, ymax]
+
+            if (invalid_box):
+                continue
 
             # add to sample list
             location_seqs.append(locations.tolist())
-            pose_seqs.append(poses.tolist())
+            pose_seqs.append(pose.tolist())
             gridflow_seqs.append(gridflow)
+            bbox_seqs.append(bbox.tolist())
             video_names.append(video_name)
             image_name_out.append(image_names[0])  # keep first image name for meta-data
             action_label_out.append(action_labels[0])
             action_index_out.append(action_indexes[0])
 
     # print("number of pose 0 =", cnt)
-    return location_seqs, pose_seqs, gridflow_seqs, video_names, image_name_out, action_label_out, action_index_out
+    return location_seqs, pose_seqs, gridflow_seqs, bbox_seqs, video_names, image_name_out, action_label_out, action_index_out
 
 
 def generate_data(args, mode):
@@ -181,6 +188,7 @@ def generate_data(args, mode):
     all_action_labels, all_action_indexes = [], []
     all_gridflow_seqs, all_location_seqs = [], []
 
+    all_bbox_seqs = []
     pbar = tqdm(total=len(video_dir))
     for video_name in video_dir:
         pbar.update(1)
@@ -192,9 +200,11 @@ def generate_data(args, mode):
         for frame_name in frame_list:
             frame_number = int(frame_name[:6])
 
-            if not os.path.exists(os.path.join(args.location_path, video_name, "{:06d}_locations.json".format(frame_number))):
+            if not os.path.exists(
+                    os.path.join(args.location_path, video_name, "{:06d}_locations.json".format(frame_number))):
                 continue
-            with open(os.path.join(args.location_path, video_name, "{:06d}_locations.json".format(frame_number)),"r") as f:
+            with open(os.path.join(args.location_path, video_name, "{:06d}_locations.json".format(frame_number)),
+                      "r") as f:
                 location_data = json.load(f)
             with open(os.path.join(args.pose_path, video_name, "{:06d}_keypoints.json".format(frame_number)), "r") as f:
                 pose_data = json.load(f)
@@ -225,22 +235,26 @@ def generate_data(args, mode):
                                                          })
 
         # extract trajectory within a video
-        location_seqs, pose_seqs, gridflow_seqs, video_names, \
+        location_seqs, pose_seqs, gridflow_seqs, bbox_seqs, video_names, \
         image_names, action_labels, action_indexes = generate_samples(video_data, video_name, args, mode)
 
         all_location_seqs.append(location_seqs)
         all_pose_seqs.append(pose_seqs)
         all_gridflow_seqs.append(gridflow_seqs)
+        all_bbox_seqs.append(bbox_seqs)
         all_video_names.append(video_names)
         all_image_names.append(image_names)
         all_action_labels.append(action_labels)
         all_action_indexes.append(action_indexes)
+
     pbar.close()
 
     # convert data to numpy array of shape (N, C, T, V, 1)
     all_location_seqs = np.array(sum(all_location_seqs, []))  # (N, T, 2)
     all_pose_seqs = np.array(sum(all_pose_seqs, []))  # (N, T, V*C)
     all_gridflow_seqs = np.array(sum(all_gridflow_seqs, []))  # (N, T, 24)
+    all_bbox_seqs = np.array(sum(all_bbox_seqs, []))  # (N, T, 4)
+    all_bbox_seqs = all_bbox_seqs.transpose(0, 2, 1)
     all_video_names = sum(all_video_names, [])
     all_image_names = sum(all_image_names, [])
     all_action_labels = sum(all_action_labels, [])
@@ -254,7 +268,7 @@ def generate_data(args, mode):
         all_pose_seqs = all_pose_seqs.reshape(N, T, 18, 3)  # (N, T, V, C)
     if (args.pose_25):
         all_pose_seqs = all_pose_seqs.reshape(N, T, 25, 3)
-    all_pose_seqs = np.expand_dims(all_pose_seqs.transpose(0, 3, 1, 2), axis=4)  # (N, C, T, V, 1)
+    all_pose_seqs = all_pose_seqs.transpose(0, 3, 1, 2)  # (N, C, T, V, 1)
 
     # normalize gridflow
     all_gridflow_seqs = all_gridflow_seqs.reshape(N * T, 24)
@@ -271,7 +285,7 @@ def generate_data(args, mode):
         pickle.dump((all_location_seqs, all_pose_seqs, all_gridflow_seqs), f)
 
     with open(metadata_file, 'wb') as f:
-        pickle.dump((all_video_names, all_image_names, all_action_labels, all_action_indexes), f)
+        pickle.dump((all_bbox_seqs, all_video_names, all_image_names, all_action_labels, all_action_indexes), f)
 
     print("number of video used: {}".format(len(video_dir)))
     print("pose shape: {}".format(all_pose_seqs.shape))

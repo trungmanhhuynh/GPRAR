@@ -51,27 +51,52 @@ class Feeder(torch.utils.data.Dataset):
         self.load_data(mmap)
 
     def load_data(self, mmap):
-        # data: N C V T M
-        #  self.bbox (N , T , 4)
-
+        """
+            Inputs:
+                data (numpy array): pose data
+                bbox (numpy array): bounnding box
+                label (list of string) list of action labels
+                sample_name (list of string): list of video name
+            Shape:
+                data: (N, C, V, T, M)
+                bbox  (N, 4, T)
+        """
         # load label
         with open(self.label_path, 'rb') as f:
-            self.sample_name, self.label, self.bbox = pickle.load(f)
+            sample_name, label, bbox = pickle.load(f)
 
         # load data
-        if mmap:
-            self.data = np.load(self.data_path, mmap_mode='r')
-        else:
-            self.data = np.load(self.data_path)
+        data = np.load(self.data_path)
 
         if self.debug:
-            self.label = self.label[0:10000]
-            self.data = self.data[0:10000]
-            self.sample_name = self.sample_name[0:10000]
+            bbox = bbox[0:10000]
+            label = label[0:10000]
+            data = data[0:10000]
+            sample_name = sample_name[0:10000]
 
-        self.N, self.C, self.T, self.V, self.M = self.data.shape
+        # scale pose using bounding box. We do this because
+        # the input pose data (for reconstruction task) is highly dependent on the scale (small vs large)
+        # Thus we apply normalization to make all the pose has the same scale.
+        N, C, T ,V, M = data.shape
+        bbox = np.expand_dims(bbox, axis=[3, 4])  # (N, 4, T, 1, 1)
+        bbox = np.repeat(bbox, V, axis=3)  # (N, 4, T, V, 1)
+        print(bbox.shape)
+        print(data.shape)
+        data[:, 0] = (data[:, 0] - bbox[:, 0]) / (bbox[:, 2] - bbox[:, 0]) - 0.5
+        data[:, 1] = (data[:, 1] - bbox[:, 1]) / (bbox[:, 3] - bbox[:, 1]) - 0.5
 
-        print("N={} C={} T={} V={} M={}".format(self.N, self.C, self.T, self.V, self.M))
+        data[:, 0][data[:, 2] == 0] = 0
+        data[:, 1][data[:, 2] == 0] = 0
+
+
+        self.data = data
+        self.bbox = bbox
+        self.label = label
+        self.sample_name = sample_name
+
+
+        #  some debugs
+        print("pose shape:", self.data.shape)
 
     def __len__(self):
         return len(self.label)

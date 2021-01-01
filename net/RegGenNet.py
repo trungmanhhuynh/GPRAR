@@ -48,9 +48,10 @@ class RegGenNet(nn.Module):
         self.reg_networks = nn.ModuleList((
             rst_gcn(256, 128, kernel_size, 1, residual=False, **kwargs0),
             rst_gcn(128, 64, kernel_size, 1, **kwargs),
-            rst_gcn(64, 32, kernel_size, 1, **kwargs)
+            rst_gcn(64, 32, kernel_size, 1, **kwargs),
+            rst_gcn(32, 3, kernel_size, 1, **kwargs)
         ))
-        self.fcn = nn.Conv2d(32, num_class, kernel_size=1)
+        self.fcn = nn.Conv2d(3, num_class, kernel_size=1)
 
         # add reconstruction branch
         self.rec_graph = Graph(**graph_args)
