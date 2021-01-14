@@ -39,31 +39,31 @@ class JAADPredictionAnalysis():
         n_sample = len(result)
         print("Number of samples:", n_sample)
 
-        input("here")
-
-        pbar = tqdm(total=len(range(0, n_sample, 10)))
-        for i in range(0, n_sample, 10):
+        pbar = tqdm(total=len(range(0, n_sample, 5)))
+        for i in range(0, n_sample, 5):
 
             pbar.update(1)
             # generate images
             obs_pose = result[i]['obs_pose'][:, -1, :]  # (C, V)
-            rec_pose = result[i]['rec_pose'][:, -1, :]  # (C, V)   <--- (54, 1) fix it
+            rec_pose = result[i]['rec_pose'][:, -1, :]  # (C, V)
             pred_loc = result[i]['pred_loc']            # (T, 2)
             gt_loc = result[i]['gt_loc']                # (T, 2)
-            bbox = result[i]['bbox'][-1]          # (4)
+            bbox = result[i]['bbox'][-1]                # (4)
             video_name = result[i]['video_name']
+            label = result[i]['label']
             st_image_name = result[i]['image_name']
-            image_path = os.path.join(self.args.image_dir, video_name)
+            image_path = os.path.join(self.args.image_dir, video_name, "images")
+            #
+            #
+            if label != 'standing':
+                continue
 
-            # print(obs_pose.shape)
-            # print(rec_pose.shape)
-            # print(pred_loc.shape)
-            # print(gt_loc.shape)
-            # print(bbox.shape)
-            # input("here")
+            occ_ratio = self.calculate_occlusion_ratio(obs_pose)
+            # if occ_ratio < 0.1:
+            #     continue
+
             images = gen_traj_on_image(obs_pose, rec_pose, pred_loc, gt_loc, bbox, G.edge,
                                                      image_path=image_path, st_mage_name=st_image_name)
-
             # plot
             sample_dir = os.path.join(self.args.res_image_dir, str(i))
             if not os.path.exists(sample_dir):
@@ -74,6 +74,21 @@ class JAADPredictionAnalysis():
                 cv2.imwrite(os.path.join(sample_dir, '{}_{}_{}.jpg'.format(i, video_name, st_image_name)), image)
 
         pbar.close()
+
+    def calculate_occlusion_ratio(self, pose):
+        """
+            Args:
+
+            Shapes:
+                pose: (C, T, V)
+            Returns:
+
+        """
+        C, V = pose.shape
+        temp = pose[0] + pose[1] + pose[2]  # (T,V)
+        non_zeros = np.count_nonzero(temp)
+
+        return 1 - non_zeros / (T * V)
 
     def load_arg(self, argv=None):
 
@@ -104,28 +119,28 @@ class JAADPredictionAnalysis():
             Args:
 
             Shapes:
-                pose: (C, T, V)
+                pose: (C, V)
             Returns:
 
         """
-        C, T, V = pose.shape
-        temp = pose[0] + pose[1] + pose[2]  # (T,V)
+        C, V = pose.shape
+        temp = pose[0] + pose[1]  # (T,V)
         non_zeros = np.count_nonzero(temp)
 
-        return 1 - non_zeros / (T * V)
+        return 1 - non_zeros / V
 
     def get_parser(add_help=False):
 
         parser = argparse.ArgumentParser(add_help=add_help, description='Trajectory Prediction Analysis')
         parser.add_argument('-c', '--config', default=None,
                             help='path to the configuration file')
-        parser.add_argument('--image_dir', type=str, default='/home/manhh/github/datasets/JAAD/images',
+        parser.add_argument('--image_dir', type=str, default='/home/manhh/github/datasets/titan/dataset/images_anonymized',
                             help='original images dir')
-        parser.add_argument('--res_image_dir', type=str, default='./results/prediction/jaad/ours/image/val',
+        parser.add_argument('--res_image_dir', type=str, default='./results/prediction/titan/ours/image/val',
                             help='result images dir')
         parser.add_argument('--gen_image_res', type=str2bool, default=True,
                             help='generate image results')
-        parser.add_argument('--res_file', type=str, default='./work_dir/prediction/jaad/ours/noisy/test_result.pkl',
+        parser.add_argument('--res_file', type=str, default='./work_dir/prediction/titan/ours/noisy/test_result.pkl',
                             help='result file path')
         parser.add_argument('--debug', type=str2bool, default=False,
                             help='debug with 10 samples')

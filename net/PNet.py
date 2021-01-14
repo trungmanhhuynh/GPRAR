@@ -100,22 +100,22 @@ class PNet(nn.Module):
                                    action_feats=action_feats, num_keypoints=num_keypoints)
 
         #
-        for p in self.reg_networks.parameters():
-            p.requires_grad = False
-        for p in self.rec_networks.parameters():
-            p.requires_grad = False
-        for p in self.enc_networks.parameters():
-            p.requires_grad = False
-        for p in self.data_bn.parameters():
-            p.requires_grad = False
-        for p in self.fcn.parameters():
-            p.requires_grad = False
-        for p in self.enc_edge_imp.parameters():
-            p.requires_grad = False
-        for p in self.reg_edge_imp.parameters():
-            p.requires_grad = False
-        for p in self.rec_edge_imp.parameters():
-            p.requires_grad = False
+        # for p in self.reg_networks.parameters():
+        #     p.requires_grad = False
+        # for p in self.rec_networks.parameters():
+        #     p.requires_grad = False
+        # for p in self.enc_networks.parameters():
+        #     p.requires_grad = False
+        # for p in self.data_bn.parameters():
+        #     p.requires_grad = False
+        # for p in self.fcn.parameters():
+        #     p.requires_grad = False
+        # for p in self.enc_edge_imp.parameters():
+        #     p.requires_grad = False
+        # for p in self.reg_edge_imp.parameters():
+        #     p.requires_grad = False
+        # for p in self.rec_edge_imp.parameters():
+        #     p.requires_grad = False
 
     def forward(self, inputs):
         """
@@ -166,29 +166,34 @@ class PNet(nn.Module):
         for gcn, importance in zip(self.rec_networks, self.rec_edge_imp):
             x2, _ = gcn(x2, self.rec_A * importance)  # (N, C, T, V)
 
-        rec_pose = x2.detach().clone()
-        act_feature = x1.detach().clone()
+        rec_pose = x2
+        act_feature = x1
+
+        # replace the missing keypoints
+        rec_pose[obs_pose != 0] = obs_pose[obs_pose != 0]
+        out_pose = rec_pose.clone()
 
         # reshape for prediction
         rec_pose[:, 0] = ((rec_pose[:, 0] + 0.5) * (bbox[:, 2] - bbox[:, 0]) + bbox[:, 0])
         rec_pose[:, 1] = ((rec_pose[:, 1] + 0.5) * (bbox[:, 3] - bbox[:, 1]) + bbox[:, 1])
-        obs_loc = rec_pose[:, :2, :, 8] + rec_pose[:, :2, :, 11]    # (N, L, T)
-        obs_loc = obs_loc.unsqueeze(3)                  # (N, L, T, 1)
 
-        rec_pose = rec_pose.permute(0, 3, 1, 2).contiguous()     # (N, V, C, T)
+        obs_loc = 0.5 * (rec_pose[:, :2, :, 8] + rec_pose[:, :2, :, 11])  # (N, L, T)
+        obs_loc = obs_loc.unsqueeze(3)  # (N, L, T, 1)
+
+        rec_pose = rec_pose.permute(0, 3, 1, 2).contiguous()  # (N, V, C, T)
         rec_pose = rec_pose.view(N, V * C, T)
-        rec_pose = rec_pose.unsqueeze(3)                         # (N, V * C, T, 1)
+        rec_pose = rec_pose.unsqueeze(3)  # (N, V * C, T, 1)
 
         obs_gridflow = obs_gridflow.permute(0, 2, 1).unsqueeze(3)  # (N, G, To, 1)
 
         act_feature = act_feature.permute(0, 3, 1, 2).contiguous()  # (N, V, A, T)
         act_feature = act_feature.view(N, V * A, T)
-        act_feature = act_feature.unsqueeze(3)                      # (N, V * A, T, 1)
+        act_feature = act_feature.unsqueeze(3)  # (N, V * A, T, 1)
 
         # predict
         pred_loc = self.predictor(obs_loc, rec_pose, obs_gridflow, act_feature)  # (N, Tp, L)
 
-        return pred_loc, rec_pose
+        return pred_loc, out_pose
 
     def extract_feature(self, x):
 
@@ -273,7 +278,8 @@ class Predictor(nn.Module):
 
         #  action network
         self.encoder_action = nn.Sequential(
-            conv2d(in_channels=self.action_feats * self.num_keypoints, out_channels=32, kernel_size=3, stride=1,padding=0),
+            conv2d(in_channels=self.action_feats * self.num_keypoints, out_channels=32, kernel_size=3, stride=1,
+                   padding=0),
             conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=0),
             conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=0),
             conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=0)

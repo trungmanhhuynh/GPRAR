@@ -75,7 +75,7 @@ class Prediction(BaseSetting):
         loader = self.data_loader['train']
         loss_value = []
 
-        for obs_pose, obs_gridflow, gt_location, bbox, video_name, image_name in loader:
+        for obs_pose, obs_gridflow, gt_location, bbox, video_name, image_name, label in loader:
             # get data
 
             obs_pose = obs_pose.float().to(self.dev)
@@ -110,7 +110,7 @@ class Prediction(BaseSetting):
         loss_value, ade_value, fde_value = [], [], []
         result_frag = []
 
-        for obs_pose, obs_gridflow, gt_location, bbox, video_name, image_name in loader:
+        for obs_pose, obs_gridflow, gt_location, bbox, video_name, image_name, label in loader:
 
             # get data
             obs_pose = obs_pose.float().to(self.dev)
@@ -126,9 +126,9 @@ class Prediction(BaseSetting):
             bbox = bbox[:, :, :, 0].permute(0, 2, 1)  # (N, T, 4)
             for i in range(obs_pose.shape[0]):
                 pred_result_frag = {'obs_pose': obs_pose[i].cpu().numpy(),
-                                    'rec_pose':rec_pose[i].cpu().numpy(),
+                                    'rec_pose': rec_pose[i].cpu().numpy(),
                                     'pred_loc': pred_loc[i].cpu().numpy(), 'gt_loc': gt_location[i].cpu().numpy(),
-                                    'bbox': bbox[i].cpu().numpy(), 'video_name': video_name[i],
+                                    'bbox': bbox[i].cpu().numpy(), 'video_name': video_name[i], 'label': label[i],
                                     'image_name': image_name[i]}
                 self.pred_result.append(pred_result_frag)
 
@@ -190,16 +190,16 @@ class Prediction(BaseSetting):
             self.lr = self.arg.base_lr
 
     def calculate_ade_fde(self, pred_loc, gt_loc):
-        '''
+        """
             pred_loc: predicted locations (N, pred_len, 2)
             gt_loc: predicted locations (N, pred_len, 2)
-        '''
+        """
 
         # convert to pixels
-        pred_loc[:, :, 0] = (pred_loc[:, :, 0] + 0.5) * self.arg.W  # x
-        pred_loc[:, :, 1] = (pred_loc[:, :, 1] + 0.5) * self.arg.H  # y
-        gt_loc[:, :, 0] = (gt_loc[:, :, 0] + 0.5) * self.arg.W  # x
-        gt_loc[:, :, 1] = (gt_loc[:, :, 1] + 0.5) * self.arg.H  # y
+        pred_loc[:, :, 0] = pred_loc[:, :, 0] * self.arg.W  # x
+        pred_loc[:, :, 1] = pred_loc[:, :, 1] * self.arg.H  # y
+        gt_loc[:, :, 0] = gt_loc[:, :, 0] * self.arg.W  # x
+        gt_loc[:, :, 1] = gt_loc[:, :, 1] * self.arg.H  # y
 
         # caculate ade/fde
         ade = np.sqrt(np.mean((pred_loc - gt_loc) ** 2))

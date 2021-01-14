@@ -1,0 +1,5 @@
+image_dir: /home/manhh/github/datasets/JAAD/images
+res_image_dir: ./results/prediction/jaad/fpl/image/val
+gen_image_res: True
+res_file: sota/fpl/work_dir/jaad/noisy/test_result.pkl
+debug: False

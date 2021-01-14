@@ -91,6 +91,7 @@ class Feeder(torch.utils.data.Dataset):
         self.video_names = video_names
         self.image_names = image_names
         self.action_indexes = action_indexes
+        self.action_labels = action_labels
 
         print("pose data shape:", self.poses.shape)
         print("location data shape:", self.gt_locations.shape)
@@ -108,6 +109,7 @@ class Feeder(torch.utils.data.Dataset):
         bbox = self.bbox[index, :, 0:self.obs_len, :]
         video_name = self.video_names[index]
         image_name = self.image_names[index]
+        label = self.action_labels[index]
 
         # processing
         # if self.random_choose:
@@ -120,4 +122,4 @@ class Feeder(torch.utils.data.Dataset):
         # if self.random_noise:
         #     noisy_data = tools.random_noise(noisy_data)
 
-        return obs_pose, obs_gridflow, gt_location, bbox, video_name, image_name
+        return obs_pose, obs_gridflow, gt_location, bbox, video_name, image_name, label

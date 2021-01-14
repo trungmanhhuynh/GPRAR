@@ -28,19 +28,23 @@
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/analysis/utils" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/sota/lstm" />
     <property name="settings.editor.selected.configurable" value="editor.preferences.fonts.default" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="Z:\github\Traj-STGCNN\sota\lstm" />
+      <recent name="Z:\github\Traj-STGCNN\sota\const_vel" />
+      <recent name="Z:\github\Traj-STGCNN\net\sota\fpl" />
       <recent name="Z:\github\Traj-STGCNN\analysis\utils" />
       <recent name="Z:\github\Traj-STGCNN\configurations\prediction\titan" />
-      <recent name="Z:\github\Traj-STGCNN\configurations\prediction\titan\fpl" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
-      <recent name="Z:\github\Traj-STGCNN\data_processing\recognition" />
-      <recent name="Z:\github\Traj-STGCNN\tools" />
-      <recent name="Z:\github\Traj-STGCNN\net\sota" />
+      <recent name="Z:\github\Traj-STGCNN\sota\lstm\configs\titan" />
+      <recent name="Z:\github\Traj-STGCNN\sota\lstm\configs\jaad" />
+      <recent name="Z:\github\Traj-STGCNN\sota\lstm" />
+      <recent name="Z:\github\Traj-STGCNN\sota\const_vel\configs\titan" />
+      <recent name="Z:\github\Traj-STGCNN\sota\const_vel\configs\jaad" />
     </key>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
@@ -128,7 +132,11 @@
       <workItem from="1609264222722" duration="17292000" />
       <workItem from="1609354800479" duration="13894000" />
       <workItem from="1609436279459" duration="11971000" />
-      <workItem from="1609461592028" duration="122000" />
+      <workItem from="1609461592028" duration="8178000" />
+      <workItem from="1609520599634" duration="11472000" />
+      <workItem from="1609606546384" duration="6051000" />
+      <workItem from="1609702187392" duration="20981000" />
+      <workItem from="1609781411410" duration="21627000" />
     </task>
     <servers />
   </component>

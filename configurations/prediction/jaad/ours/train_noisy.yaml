@@ -14,7 +14,6 @@ test_feeder_args:
   pred_len: 10
   data_path: ../datasets/processed_data/prediction/jaad/val_data_noisy.pkl
   label_path: ../datasets/processed_data/prediction/jaad/val_metadata_noisy.pkl
-
 # model
 model: net.PNet.PNet
 model_args:

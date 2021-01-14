@@ -110,28 +110,29 @@ def generate_samples(video_data, video_name, args, mode):
             #     continue
 
             # get pose data
-
-            # get pose data
             pose = np.array(pose)  # (traj_len, 54)
             pose[:, 0::3] = pose[:, 0::3] / float(args.width)  # normalize x by frame width
             pose[:, 1::3] = pose[:, 1::3] / float(args.height)  # normalize y by frame height
             pose[:, 0::3][pose[:, 2::3] == 0] = 0
             pose[:, 1::3][pose[:, 2::3] == 0] = 0
 
-            if mode == 'train' or mode == 'val':
+            # get pose data
+            if mode == 'train':
                 if args.obs_type == 'impute' or args.obs_type == 'gt':
                     pose, valid = impute_poses(args, pose)
+            if mode == 'val':
+                if args.obs_type == 'impute':
+                    pose, valid = impute_poses(args, pose)
+                if args.obs_type == 'gt':
+                    # pose, valid = impute_poses(args, pose)
+                    if 0 in pose:
+                        continue
 
-            if mode == 'test' and args.obs_type == 'gt':
-                if 0 in pose:
-                    continue
 
-                # get gt location data
+            # get gt location data
             locations = np.array(locations)  # (traj_len, 2)
             locations[:, 0] = locations[:, 0] / float(args.width)
             locations[:, 1] = locations[:, 1] / float(args.height)
-            locations[:, 0] = locations[:, 0] - 0.5
-            locations[:, 1] = locations[:, 1] - 0.5
 
             # calculate bounding box
             bbox = np.zeros((args.traj_len, 4))

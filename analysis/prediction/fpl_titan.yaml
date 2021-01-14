@@ -1,0 +1,5 @@
+image_dir: /home/manhh/github/datasets/titan/dataset/images_anonymized
+res_image_dir: ./results/prediction/titan/fpl/image/val
+gen_image_res: True
+res_file: sota/fpl/work_dir/titan/noisy/test_result.pkl
+debug: False

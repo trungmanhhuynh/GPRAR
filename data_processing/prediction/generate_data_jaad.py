@@ -118,12 +118,22 @@ def generate_samples(video_data, video_name, args, mode):
             pose = np.array(pose)  # (traj_len, 54)
             pose[:, 0::3] = pose[:, 0::3] / float(video_info[video_name][0])  # normalize x by frame width
             pose[:, 1::3] = pose[:, 1::3] / float(video_info[video_name][1])  # normalize y by frame height
+            pose[:, 0::3][pose[:, 2::3] == 0] = 0
+            pose[:, 1::3][pose[:, 2::3] == 0] = 0
 
+            if mode == 'test':
+                if 0 not in pose:
+                    continue
+
+            # get pose data
             if mode == 'train':
                 if args.obs_type == 'impute' or args.obs_type == 'gt':
                     pose, valid = impute_poses(args, pose)
-            else:
+            if mode == 'val':
+                if args.obs_type == 'impute':
+                    pose, valid = impute_poses(args, pose)
                 if args.obs_type == 'gt':
+                    # pose, valid = impute_poses(args, pose)
                     if 0 in pose:
                         continue
 
@@ -131,8 +141,6 @@ def generate_samples(video_data, video_name, args, mode):
             locations = np.array(locations)  # (traj_len, 2)
             locations[:, 0] = locations[:, 0] / float(video_info[video_name][0])
             locations[:, 1] = locations[:, 1] / float(video_info[video_name][1])
-            locations[:, 0] = locations[:, 0] - 0.5
-            locations[:, 1] = locations[:, 1] - 0.5
 
             # calculate bounding box
             bbox = np.zeros((args.traj_len, 4))
@@ -152,10 +160,6 @@ def generate_samples(video_data, video_name, args, mode):
                 if (xmax - xmin == 0) or (ymax - ymin == 0):
                     continue
                 bbox[t, :] = [xmin, ymin, xmax, ymax]
-
-                # normalize pose
-                pose[t, 0::3][pose[t, 2::3] == 0] = 0
-                pose[t, 1::3][pose[t, 2::3] == 0] = 0
 
             # add to sample list
             location_seqs.append(locations.tolist())
@@ -181,7 +185,7 @@ def generate_data(args, mode):
     if mode == "train":
         video_dir = video_dir[:int(len(video_dir) * 0.8)]  # 80% of data for training
     else:  # val
-        video_dir = video_dir[-int(len(video_dir) * 0.2):]  # 20% of data for val
+        video_dir = video_dir[-int(len(video_dir) * 0.2):]  # 20% of data for val/test
     if args.debug:
         video_dir = video_dir[:10]  # use 10 videos for debug
 
@@ -306,15 +310,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Generate train/val data for prediction on jaad')
     parser.add_argument(
-        '--video_info_fn', default='../datasets/processed_data/features/jaad/video_info.csv')
+        '--video_info_fn', default='/home/manhh/github/datasets/processed_data/features/jaad/video_info.csv')
     parser.add_argument(
-        '--location_path', default='../datasets/processed_data/features/jaad/location')
+        '--location_path', default='/home/manhh/github/datasets/processed_data/features/jaad/location')
     parser.add_argument(
-        '--pose_path', default='../datasets/processed_data/features/jaad/pose_18_id')
+        '--pose_path', default='/home/manhh/github/datasets/processed_data/features/jaad/pose_18_id')
     parser.add_argument(
-        '--gridflow_path', default='../datasets/processed_data/features/jaad/gridflow')
+        '--gridflow_path', default='/home/manhh/github/datasets/processed_data/features/jaad/gridflow')
     parser.add_argument(
-        '--out_folder', default='../datasets/processed_data/prediction/jaad/')
+        '--out_folder', default='/home/manhh/github/datasets/processed_data/prediction/jaad')
     parser.add_argument(
         '--pose_18', action="store_true", default=True, help='by default, using 18 keypoints')
     parser.add_argument(
@@ -336,3 +340,4 @@ if __name__ == "__main__":
     # test_KNNImputer()
     generate_data(args, "train")
     generate_data(args, "val")
+    # generate_data(args, "test")
