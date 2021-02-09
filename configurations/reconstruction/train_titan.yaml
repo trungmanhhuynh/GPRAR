@@ -1,5 +1,5 @@
-work_dir: /home/manhh/work_dir/reconstruction/titan
-weights: /home/manhh/work_dir/reconstruction/kinetics/epoch50_model.pt
+work_dir: /home/manhh/work_dir/reconstruction/titan_rand_init
+# weights: /home/manhh/work_dir/reconstruction/kinetics/epoch50_model.pt
 ignore_weights: ['fcn']     # ignore last layer of recognition
 
 # feeder

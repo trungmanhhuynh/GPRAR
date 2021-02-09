@@ -292,7 +292,7 @@ class Predictor(nn.Module):
             conv2d(in_channels=128, out_channels=256, kernel_size=1, stride=1, padding=0),
             conv2d(in_channels=256, out_channels=256, kernel_size=1, stride=1, padding=0),
             deconv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0),
-            deconv2d(in_channels=256, out_channels=128, kernel_size=3, stride=1, padding=0),
+            deconv2d(in_channels=256, out_channels=128, kernel_size=3, st ride=1, padding=0),
             deconv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=0),
             deconv2d(in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=0),
             conv2d(in_channels=32, out_channels=2, kernel_size=1, stride=1, padding=0)
@@ -306,7 +306,7 @@ class Predictor(nn.Module):
                 obs_gridflow (tensor): observed grid optical flow feature
             Shape:
                obs_loc: (N, L, To, 1)
-               obs_pose: (N, V * P, To, 1)
+                   obs_pose: (N, V * P, To, 1)
                obs_gridflow: (N, G, To, 1)
                obs_act: (N, A, To, 1)      # A = V * P
             Return:
