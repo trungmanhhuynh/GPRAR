@@ -21,20 +21,3 @@ $  python data_processing/prediction/generate_data_jaad.py --obs_type noisy
 $  python data_processing/prediction/generate_data_jaad.py --obs_type impute
 $  python data_processing/prediction/generate_data_jaad.py --obs_type gt
 ``` 
-
-
-**2. Train RegNet on kinetics datasets** 
-```
-$ python main.py recognition -c configurations/recognition/train.yaml
-```
-**3. Train RecPoseNet on kinetics datasets** 
-```
-$ python main.py reconstruction -c configurations/reconstruction/train_kinetics.yaml
-```
-**4. Train RecPoseNet on JAAD datasets** 
-```
-```
-**4. Train PNet on JAAD datasets** 
-```
-```
-#### Results on TITAN dataset
