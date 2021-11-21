@@ -1,3 +1,4 @@
+![alt text](./img1.JPG)
 
 
 ## Goal 
