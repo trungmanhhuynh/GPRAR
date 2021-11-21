@@ -1,4 +1,4 @@
-![alt text](./img1.JPG)
+![alt text](./img2.JPG)
 
 
 ## Goal 
