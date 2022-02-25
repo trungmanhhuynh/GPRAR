@@ -1,13 +1,13 @@
+This code/implementation is available for research purposes. If you are using this code/data for your work, please cite the following paper:
+
+> Huynh, Manh, and Gita Alaghband. "GPRAR: graph convolutional network based pose reconstruction and action recognition for human trajectory prediction." arXiv preprint arXiv:2103.14113 (2021). In Proceeding of BMVC 2021. 
+https://arxiv.org/pdf/2103.14113.pdf
+
 #### Key ideas:
 + GPRAR is a graph convolutional network based pose reconstruction and action recognition for human trajectory prediction. 
 + GPRAR learns robust features: human poses and actions, under noisy scenarios. 
 + By design, GPRAR consists of two modules: PRAR (Pose Reconstruction and Action Recognition) and FA (Feature Aggregator).
 
-Please cite and learn more at:
-```
-Huynh, Manh, and Gita Alaghband. "GPRAR: graph convolutional network based pose reconstruction and action recognition for human trajectory prediction." arXiv preprint arXiv:2103.14113 (2021). In Proceeding of BMVC 2021. 
-```
-https://arxiv.org/pdf/2103.14113.pdf
 
 
 ![alt text](./img2.JPG)
