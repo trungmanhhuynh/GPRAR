@@ -1,14 +1,19 @@
+**Key ideas:
+**
+1. GPRAR is a graph convolutional network based pose reconstruction and action recognition for human trajectory prediction. 
+2. GPRAR learns robust features: human poses and actions, under noisy scenarios. 
+3. By design, GPRAR consists of two modules: PRAR (Pose Reconstruction and Action Recognition) and FA (Feature Aggregator).
+
+Please cite and learn more at:
+```
+Huynh, Manh, and Gita Alaghband. "GPRAR: graph convolutional network based pose reconstruction and action recognition for human trajectory prediction." arXiv preprint arXiv:2103.14113 (2021). In Proceeding of BMVC 2021. 
+```
+https://arxiv.org/pdf/2103.14113.pdf
+
+
 ![alt text](./img2.JPG)
 
-
-## Goal 
-
- - In this project, we study how pose features impact on human future location prediction. We strongly focus handling the scenarios that 
- the human pose estimation are often imperfect (e.g. missing detected human keypoints). 
- - The current method is based on spatio-temporal graph convolutional neural networks (st-gcnn), which we will exploit its capability to "attend" to visible human keypoints, 
- give higher importance weights to human parts that are related to prediction tasks. 
-
-#### Results on JAAD dataset
+#### Experiments on JAAD dataset
 **1. Generate train/val data**  
 a. Read [PRE_PROCESS.md](PRE_PROCESS.md) for instructions extracting features.  
 b. Generate/val data of JAAD and Kinetics for reconstruction task: 
